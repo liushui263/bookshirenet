@@ -290,11 +290,18 @@ export default function Home({
   );
 }
 
-export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
-  const data = await fetchBooks();
+export async function getStaticProps() {
+  const data = await fetchData(); // 你的获取数据逻辑
+
+  // 深度清洗数据，将 undefined 转换为 null
+  const cleanData = JSON.parse(JSON.stringify(data, (_, v) => 
+    v === undefined ? null : v
+  ));
 
   return {
-    props: { data },
-    revalidate: 86400, // 每天更新一次，cron 也会主动触发刷新
+    props: {
+      data: cleanData,
+    },
   };
+}
 };
