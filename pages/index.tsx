@@ -1,7 +1,10 @@
+import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import Section from "../components/Section";
-import { fetchBooks } from "../lib/fetchBooks";
+import { fetchBooks, type BooksData } from "../lib/fetchBooks";
 
-export default function Home({ data }) {
+export default function Home({
+  data,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   return (
     <div className="container">
       <h1>📚 BookShire</h1>
@@ -13,11 +16,11 @@ export default function Home({ data }) {
   );
 }
 
-export async function getStaticProps() {
+export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
   const data = await fetchBooks();
 
   return {
     props: { data },
-    revalidate: 86400 // 每天更新
+    revalidate: 86400, // 每天更新
   };
-}
+};

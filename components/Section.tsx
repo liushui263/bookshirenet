@@ -1,6 +1,13 @@
+import type { GoogleBook, OpenLibraryBook } from "../lib/fetchBooks";
 import BookCard from "./BookCard";
 
-export default function Section({ title, books, isCN }) {
+interface SectionProps {
+  title: string;
+  books: Array<GoogleBook | OpenLibraryBook>;
+  isCN?: boolean;
+}
+
+export default function Section({ title, books, isCN = false }: SectionProps) {
   return (
     <div className="section">
       <h2>{title}</h2>
