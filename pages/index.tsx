@@ -291,7 +291,7 @@ export default function Home({
 }
 
 export async function getStaticProps() {
-  const data = await fetchData(); // 你的获取数据逻辑
+  const data = await fetchBooks(); // 你的获取数据逻辑
 
   // 深度清洗数据，将 undefined 转换为 null
   const cleanData = JSON.parse(JSON.stringify(data, (_, v) => 
