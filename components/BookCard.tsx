@@ -1,27 +1,21 @@
-import type { GoogleBook, OpenLibraryBook } from "../lib/fetchBooks";
+import type { Book } from "../lib/fetchBooks";
 
 interface BookCardProps {
-  book: GoogleBook | OpenLibraryBook;
-  isCN?: boolean;
+  book: Book;
 }
 
-export default function BookCard({ book, isCN = false }: BookCardProps) {
-  const googleBook = book as GoogleBook;
-  const cnBook = book as OpenLibraryBook;
-  const info = googleBook.volumeInfo ?? {};
-
-  const title = isCN ? cnBook.title : info.title;
-  const author = isCN ? cnBook.author_name?.[0] : info.authors?.join(", ");
-
-  const image = isCN
-    ? "https://via.placeholder.com/128x180?text=Book"
-    : info.imageLinks?.thumbnail ?? "https://via.placeholder.com/128x180?text=Book";
+export default function BookCard({ book }: BookCardProps) {
+  const author = book.authors.join(", ");
+  const languageLabel = book.language === "zh" ? "中文" : "EN";
+  const publishedLabel = book.publishedDate ?? "Unknown date";
 
   return (
     <div className="card">
-      <img src={image} alt={title || "Book cover"} />
-      <h4>{title}</h4>
+      <img src={book.cover} alt={book.title || "Book cover"} />
+      <h4>{book.title}</h4>
       <p>{author}</p>
+      <p>{publishedLabel}</p>
+      <p>{languageLabel}</p>
     </div>
   );
 }

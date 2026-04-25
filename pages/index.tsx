@@ -8,10 +8,12 @@ export default function Home({
   return (
     <div className="container">
       <h1>📚 BookShire</h1>
+      <p>Auto-updated new releases in English and Chinese.</p>
+      <p>Last refreshed: {new Date(data.updatedAt).toLocaleString()}</p>
 
       <Section title="🔥 Top Selling (EN)" books={data.enTrending} />
       <Section title="🆕 Latest (EN)" books={data.enLatest} />
-      <Section title="📖 中文新书" books={data.cnLatest} isCN />
+      <Section title="📖 中文新书" books={data.cnLatest} />
     </div>
   );
 }
@@ -21,6 +23,6 @@ export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
 
   return {
     props: { data },
-    revalidate: 86400, // 每天更新
+    revalidate: 21600, // 每 6 小时更新
   };
 };
