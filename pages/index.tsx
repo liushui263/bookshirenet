@@ -116,13 +116,23 @@ export default function Home({
 
       <div className="page-shell">
         <header className="topbar">
-          <a className="brand" href="#top">
+            <a className="brand" href="#top">
             <span className="brand-mark">B</span>
             <span className="brand-copy">
-              <strong>BookShire不可舍书坊</strong>
-              <small>Daily reading shelf</small>
+                <div className="main-text">
+                <div className="line">
+                    <strong>BookShire</strong>
+                    <em className="special-char">书</em>
+                </div>
+                <div className="line">
+                    <strong>布客舍</strong>
+                    <em className="special-char">坊</em>
+                </div>
+                </div>
+                <small>Daily reading shelf</small>
             </span>
-          </a>
+            <span className="brand-mark">書</span>
+            </a>
 
           <nav className="topnav" aria-label="Primary">
             <a href="#trending-en">Bestsellers</a>
