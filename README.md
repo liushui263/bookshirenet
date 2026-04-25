@@ -155,6 +155,29 @@ export async function getStaticProps() {
 
 👉 每天自动更新一次
 
+当前项目已实现：
+
+- 首页 `getStaticProps` 使用 `revalidate: 86400`
+- `pages/api/revalidate.ts` 提供受保护的按需刷新接口
+- `vercel.json` 配置了每天 1 次的 Vercel Cron
+
+部署时需要在 Vercel 项目里添加环境变量：
+
+- `CRON_SECRET`：至少 16 位的随机字符串
+
+说明：
+
+- `vercel.json` 当前使用 `0 12 * * *`
+- 这是 UTC 时间，也就是每天 `12:00 UTC`
+- 按 2026-04-25 的 America/Chicago 时区来看，对应 `2026-04-25 07:00 CDT`
+- 到冬令时会变成 `06:00 CST`
+
+Cron 会访问：
+
+- `/api/revalidate`
+
+这个接口会校验 `Authorization: Bearer <CRON_SECRET>`，然后执行首页 `/` 的 ISR 重新生成。
+
 七、部署（10分钟完成）
 步骤：
 注册 GitHub

@@ -23,6 +23,6 @@ export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
 
   return {
     props: { data },
-    revalidate: 21600, // 每 6 小时更新
+    revalidate: 86400, // 每天更新一次，cron 也会主动触发刷新
   };
 };
