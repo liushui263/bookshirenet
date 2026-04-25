@@ -7,15 +7,37 @@ interface BookCardProps {
 export default function BookCard({ book }: BookCardProps) {
   const author = book.authors.join(", ");
   const languageLabel = book.language === "zh" ? "中文" : "EN";
-  const publishedLabel = book.publishedDate ?? "Unknown date";
+  const publishedLabel = book.publishedDate ?? "Date pending";
 
   return (
-    <div className="card">
-      <img src={book.cover} alt={book.title || "Book cover"} />
-      <h4>{book.title}</h4>
-      <p>{author}</p>
-      <p>{publishedLabel}</p>
-      <p>{languageLabel}</p>
-    </div>
+    <article className="card">
+      <div className="card-cover">
+        <img
+          src={book.cover}
+          alt={book.title || "Book cover"}
+          loading="lazy"
+          decoding="async"
+        />
+        <span className="card-chip">{languageLabel}</span>
+      </div>
+
+      <div className="card-body">
+        <p className="card-kicker">{publishedLabel}</p>
+        <h3>{book.title}</h3>
+        <p className="card-author">{author}</p>
+        {book.sourceUrl ? (
+          <a
+            className="card-link"
+            href={book.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View source
+          </a>
+        ) : (
+          <span className="card-link card-link-muted">Catalog entry</span>
+        )}
+      </div>
+    </article>
   );
 }
