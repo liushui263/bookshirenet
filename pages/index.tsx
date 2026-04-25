@@ -304,4 +304,4 @@ export async function getStaticProps() {
     },
   };
 }
-};
+
