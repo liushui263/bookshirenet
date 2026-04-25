@@ -223,6 +223,42 @@ img {
   margin-top: 28px;
 }
 
+.load-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.load-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.load-status-loading {
+  color: var(--gold);
+}
+
+.load-status-loading .load-status-dot {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.load-status-success {
+  color: var(--accent);
+}
+
+.load-status-error {
+  color: #8a4f37;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -607,6 +643,19 @@ img {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

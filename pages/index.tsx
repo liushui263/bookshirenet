@@ -1,40 +1,108 @@
 import Head from "next/head";
+import { startTransition, useEffect, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import Section from "../components/Section";
 import { fetchBooks, type BooksData } from "../lib/fetchBooks";
 
+type LoadState = "idle" | "loading" | "success" | "error";
+
+function getTotalBooks(data: BooksData) {
+  return data.enTrending.length + data.enLatest.length + data.cnLatest.length;
+}
+
+function hasAnyBooks(data: BooksData) {
+  return getTotalBooks(data) > 0;
+}
+
 export default function Home({
   data,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
+  const [booksData, setBooksData] = useState(data);
+  const [loadState, setLoadState] = useState<LoadState>(
+    hasAnyBooks(data) ? "idle" : "loading"
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadBooks() {
+      setLoadState("loading");
+
+      try {
+        const response = await fetch("/api/books", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load books: ${response.status}`);
+        }
+
+        const nextData = (await response.json()) as BooksData;
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (hasAnyBooks(nextData)) {
+          startTransition(() => {
+            setBooksData(nextData);
+          });
+          setLoadState("success");
+          return;
+        }
+
+        setLoadState(hasAnyBooks(data) ? "success" : "error");
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.error("Failed to load live book lists", error);
+        setLoadState(hasAnyBooks(data) ? "success" : "error");
+      }
+    }
+
+    loadBooks();
+
+    return () => controller.abort();
+  }, [data]);
+
   const lastRefreshed = new Intl.DateTimeFormat("en-US", {
     dateStyle: "long",
     timeStyle: "short",
     timeZone: "America/Chicago",
-  }).format(new Date(data.updatedAt));
+  }).format(new Date(booksData.updatedAt));
 
-  const totalBooks =
-    data.enTrending.length + data.enLatest.length + data.cnLatest.length;
+  const totalBooks = getTotalBooks(booksData);
 
   const shelfHighlights = [
-    data.enTrending[0],
-    data.enLatest[0],
-    data.cnLatest[0],
+    booksData.enTrending[0],
+    booksData.enLatest[0],
+    booksData.cnLatest[0],
   ].filter(Boolean);
 
   const digest = [
     {
       label: "Bestseller pulse",
-      value: data.enTrending[0]?.title ?? "Fresh rankings loading",
+      value: booksData.enTrending[0]?.title ?? "Fresh rankings loading",
     },
     {
       label: "Newest in English",
-      value: data.enLatest[0]?.title ?? "New fiction arriving soon",
+      value: booksData.enLatest[0]?.title ?? "New fiction arriving soon",
     },
     {
       label: "Newest in Chinese",
-      value: data.cnLatest[0]?.title ?? "中文书单正在更新",
+      value: booksData.cnLatest[0]?.title ?? "中文书单正在更新",
     },
   ];
+
+  const statusLabel =
+    loadState === "loading"
+      ? "Loading live shelf..."
+      : loadState === "error"
+        ? "Live fetch failed, showing current shelf"
+        : "Live shelf ready";
 
   return (
     <>
@@ -51,7 +119,7 @@ export default function Home({
           <a className="brand" href="#top">
             <span className="brand-mark">B</span>
             <span className="brand-copy">
-              <strong>BookShire</strong>
+              <strong>BookShire不可舍书坊</strong>
               <small>Daily reading shelf</small>
             </span>
           </a>
@@ -85,6 +153,11 @@ export default function Home({
                 <a className="button button-secondary" href="/api/books">
                   Open API Feed
                 </a>
+              </div>
+
+              <div className={`load-status load-status-${loadState}`}>
+                <span className="load-status-dot" aria-hidden="true" />
+                <span>{statusLabel}</span>
               </div>
 
               <div className="hero-stats">
@@ -154,21 +227,21 @@ export default function Home({
                 eyebrow="Chart movers"
                 title="Top Selling English Books"
                 subtitle="The high-visibility shelf: books that feel closest to a Goodreads bestseller strip."
-                books={data.enTrending}
+                books={booksData.enTrending}
               />
               <Section
                 id="latest-en"
                 eyebrow="New release wall"
                 title="Latest English Fiction"
                 subtitle="Fresh arrivals with a cleaner, editorial presentation for browsing at a glance."
-                books={data.enLatest}
+                books={booksData.enLatest}
               />
               <Section
                 id="latest-zh"
                 eyebrow="中文精选"
                 title="Chinese New Books"
                 subtitle="A quieter 豆瓣-style corner for Chinese-language recent titles."
-                books={data.cnLatest}
+                books={booksData.cnLatest}
               />
             </div>
 
@@ -187,15 +260,15 @@ export default function Home({
                 <p className="panel-label">Language Mix</p>
                 <div className="sidebar-metrics">
                   <div>
-                    <strong>{data.enTrending.length}</strong>
+                    <strong>{booksData.enTrending.length}</strong>
                     <span>Trending EN</span>
                   </div>
                   <div>
-                    <strong>{data.enLatest.length}</strong>
+                    <strong>{booksData.enLatest.length}</strong>
                     <span>New EN</span>
                   </div>
                   <div>
-                    <strong>{data.cnLatest.length}</strong>
+                    <strong>{booksData.cnLatest.length}</strong>
                     <span>中文新书</span>
                   </div>
                 </div>
