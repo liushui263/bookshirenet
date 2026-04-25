@@ -118,7 +118,7 @@ export default function Home({
         <header className="topbar">
             <a className="brand" href="#top">
             <span className="brand-mark">B</span>
-            <span className="brand-copy">
+            <div className="brand-copy">
                 <div className="main-text">
                 <div className="line">
                     <strong>BookShire</strong>
@@ -130,7 +130,7 @@ export default function Home({
                 </div>
                 </div>
                 <small>Daily reading shelf</small>
-            </span>
+            </div>
             <span className="brand-mark">書</span>
             </a>
 
@@ -314,4 +314,3 @@ export async function getStaticProps() {
     },
   };
 }
-

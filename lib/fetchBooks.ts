@@ -54,6 +54,8 @@ function buildGoogleBooksUrl(params: {
     searchParams.set("orderBy", params.orderBy);
   }
 
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || "AIzaSyCnR0QnBNpsutE-5giOl4snWWWqGl633gM";
+  searchParams.set("key", apiKey);
   return `https://www.googleapis.com/books/v1/volumes?${searchParams.toString()}`;
 }
 
