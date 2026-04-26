@@ -285,6 +285,7 @@ export default function Home({
                 title="Top Selling English Books"
                 subtitle="The high-visibility shelf: books that feel closest to a Goodreads bestseller strip."
                 books={booksData.enTrending}
+                isRefreshing={loadState === "loading"}
               />
               <Section
                 id="latest-en"
@@ -292,6 +293,7 @@ export default function Home({
                 title="Latest English Fiction"
                 subtitle="Fresh arrivals with a cleaner, editorial presentation for browsing at a glance."
                 books={booksData.enLatest}
+                isRefreshing={loadState === "loading"}
               />
               <Section
                 id="latest-zh"
@@ -299,6 +301,7 @@ export default function Home({
                 title="Chinese New Books"
                 subtitle="A quieter 豆瓣-style corner for Chinese-language recent titles."
                 books={booksData.cnLatest}
+                isRefreshing={loadState === "loading"}
               />
             </div>
 

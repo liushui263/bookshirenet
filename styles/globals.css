@@ -471,6 +471,21 @@ img {
   margin-bottom: 20px;
 }
 
+.section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-refreshing {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+}
+
 .section h2 {
   font-size: clamp(2rem, 4vw, 2.8rem);
 }
@@ -508,6 +523,46 @@ img {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
   opacity: 0;
   animation: fade-up 620ms ease forwards;
+}
+
+.card-skeleton {
+  pointer-events: none;
+}
+
+.card-skeleton-cover {
+  margin: 16px 16px 0;
+  border-radius: 16px;
+  aspect-ratio: 2 / 3;
+  background: linear-gradient(
+    110deg,
+    rgba(233, 223, 206, 0.7) 8%,
+    rgba(252, 246, 237, 0.95) 18%,
+    rgba(233, 223, 206, 0.7) 33%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.card-skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(
+    110deg,
+    rgba(233, 223, 206, 0.7) 8%,
+    rgba(252, 246, 237, 0.95) 18%,
+    rgba(233, 223, 206, 0.7) 33%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.card-skeleton-line-short {
+  width: 38%;
+}
+
+.card-skeleton-line-wide {
+  width: 84%;
 }
 
 .grid .card:nth-child(2) {
@@ -695,6 +750,12 @@ img {
   }
 }
 
+@keyframes shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
 @media (max-width: 1120px) {
   .hero,
   .catalog-layout {
@@ -745,6 +806,11 @@ img {
   .section-header {
     flex-direction: column;
     align-items: start;
+  }
+
+  .section-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
