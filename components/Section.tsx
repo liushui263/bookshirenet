@@ -10,6 +10,7 @@ interface SectionProps {
   isRefreshing?: boolean;
   sourceLabel?: string;
   updatedAtLabel?: string;
+  emptyMessage?: string;
 }
 
 export default function Section({
@@ -21,6 +22,7 @@ export default function Section({
   isRefreshing = false,
   sourceLabel,
   updatedAtLabel,
+  emptyMessage,
 }: SectionProps) {
   const sectionLabelId = id ? `${id}-title` : undefined;
   const showSkeleton = isRefreshing && books.length === 0;
@@ -65,7 +67,9 @@ export default function Section({
         ) : books.length ? (
           books.map((book) => <BookCard key={book.id} book={book} />)
         ) : (
-          <div className="section-empty">No books available for this shelf yet.</div>
+          <div className="section-empty">
+            {emptyMessage ?? "No books available for this shelf yet."}
+          </div>
         )}
       </div>
     </section>

@@ -2,6 +2,7 @@ import Head from "next/head";
 import Image from "next/image";
 import { startTransition, useEffect, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
+import { useRouter } from "next/router";
 import Section from "../components/Section";
 import { fetchBooks, type Book, type BooksData } from "../lib/fetchBooks";
 
@@ -63,6 +64,7 @@ function toSerializableBooksData(data: BooksData): BooksData {
 export default function Home({
   data,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
+  const router = useRouter();
   const [booksData, setBooksData] = useState(data);
   const [activeTab, setActiveTab] = useState<"zh" | "en" | "intl">("zh");
   const [loadState, setLoadState] = useState<LoadState>(
@@ -114,6 +116,41 @@ export default function Home({
 
     return () => controller.abort();
   }, [data]);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const queryTab = router.query.tab;
+    if (queryTab === "zh" || queryTab === "en" || queryTab === "intl") {
+      setActiveTab(queryTab);
+      return;
+    }
+
+    setActiveTab("zh");
+  }, [router.isReady, router.query.tab]);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const currentQueryTab = router.query.tab;
+    if (currentQueryTab === activeTab) {
+      return;
+    }
+
+    const nextQuery = { ...router.query, tab: activeTab };
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: nextQuery,
+      },
+      undefined,
+      { shallow: true, scroll: false }
+    );
+  }, [activeTab, router]);
 
   const lastRefreshed = new Intl.DateTimeFormat("en-US", {
     dateStyle: "long",
@@ -257,6 +294,11 @@ export default function Home({
       : loadState === "loading"
         ? "Trying to refresh from Google Books."
         : "Fresh or cached content is available for browsing.";
+
+  const sectionEmptyMessage =
+    loadState === "error"
+      ? "No books returned right now. This can happen during DNS instability, API quota limits, or temporary source outages."
+      : "No books found for this list right now. Try another tab or refresh later.";
 
   return (
     <>
@@ -443,6 +485,7 @@ export default function Home({
                       : "Source: Google Books newest"
                   }
                   updatedAtLabel={listUpdatedAt}
+                  emptyMessage={sectionEmptyMessage}
                 />
               ))}
             </div>
