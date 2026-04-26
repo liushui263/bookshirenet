@@ -2,7 +2,7 @@ import Head from "next/head";
 import { startTransition, useEffect, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import Section from "../components/Section";
-import { fetchBooks, type BooksData } from "../lib/fetchBooks";
+import { fetchBooks, type Book, type BooksData } from "../lib/fetchBooks";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -12,6 +12,27 @@ function getTotalBooks(data: BooksData) {
 
 function hasAnyBooks(data: BooksData) {
   return getTotalBooks(data) > 0;
+}
+
+function toSerializableBook(book: Book): Book {
+  return {
+    id: book.id,
+    title: book.title,
+    authors: [...book.authors],
+    cover: book.cover,
+    language: book.language,
+    ...(book.publishedDate ? { publishedDate: book.publishedDate } : {}),
+    ...(book.sourceUrl ? { sourceUrl: book.sourceUrl } : {}),
+  };
+}
+
+function toSerializableBooksData(data: BooksData): BooksData {
+  return {
+    enLatest: data.enLatest.map(toSerializableBook),
+    cnLatest: data.cnLatest.map(toSerializableBook),
+    enTrending: data.enTrending.map(toSerializableBook),
+    updatedAt: data.updatedAt,
+  };
 }
 
 export default function Home({
@@ -300,17 +321,14 @@ export default function Home({
   );
 }
 
-export async function getStaticProps() {
-  const data = await fetchBooks(); // 你的获取数据逻辑
-
-  // 深度清洗数据，将 undefined 转换为 null
-  const cleanData = JSON.parse(JSON.stringify(data, (_, v) => 
-    v === undefined ? null : v
-  ));
+export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
+  const data = await fetchBooks();
+  const serializableData = toSerializableBooksData(data);
 
   return {
     props: {
-      data: cleanData,
+      data: serializableData,
     },
+    revalidate: 60 * 60 * 24,
   };
-}
+};
