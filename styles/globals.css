@@ -58,6 +58,12 @@ a {
   text-decoration: none;
 }
 
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 img {
   display: block;
   max-width: 100%;
@@ -236,6 +242,13 @@ img {
   font-size: 0.9rem;
 }
 
+.load-status-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
 .load-status-dot {
   width: 10px;
   height: 10px;
@@ -341,6 +354,15 @@ img {
 .mini-shelf {
   display: grid;
   gap: 14px;
+}
+
+.mini-shelf-empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .mini-book {
@@ -745,77 +767,4 @@ img {
     animation: none !important;
     transition: none !important;
   }
-}
-
-/* 品牌整体容器 */
-.brand {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  color: #333;
-  gap: 12px;
-}
-
-/* 那个孤傲的 B */
-.brand-mark {
-  font-size: 32px;
-  font-weight: 900;
-  border: 2px solid #1a1a1a;
-  padding: 0 10px;
-  line-height: 1.1;
-  color: #1a1a1a;
-}
-
-.brand-copy {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 文字主体对齐逻辑 */
-.main-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.line {
-  display: flex;
-  justify-content: space-between; /* 撑开左右，实现书/坊对齐 */
-  align-items: center;
-  gap: 8px; /* 调整英文/中文与特殊字之间的间隙 */
-}
-
-/* 核心两行文字 */
-.line strong {
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  font-size: 14px;
-}
-
-/* 特殊对待：书 & 坊 */
-.special-char {
-  font-family: "Noto Serif SC", "SimSun", serif; /* 换成更有书卷气的宋体 */
-  font-style: normal;
-  font-weight: 900;
-  font-size: 16px;
-  color: #b22222; /* 这种红，是旧书摊盖印的颜色 */
-  text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
-  /* 确保两个字绝对对齐 */
-  width: 20px;
-  text-align: center;
-}
-
-/* 底部的小字：保持低调，像个脚注 */
-small {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: #999;
-  letter-spacing: 1px;
-  margin-top: 2px;
-}
-
-/* 互动：当你想舍弃却舍不得时 */
-.brand:hover .special-char {
-  color: #000;
-  transition: color 0.3s ease;
 }

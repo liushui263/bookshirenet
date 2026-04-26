@@ -125,6 +125,13 @@ export default function Home({
         ? "Live fetch failed, showing current shelf"
         : "Live shelf ready";
 
+  const statusHint =
+    loadState === "error"
+      ? "Data source is temporarily unavailable. Cached books are shown."
+      : loadState === "loading"
+        ? "Trying to refresh from Google Books."
+        : "Fresh or cached content is available for browsing.";
+
   return (
     <>
       <Head>
@@ -186,10 +193,15 @@ export default function Home({
                 </a>
               </div>
 
-              <div className={`load-status load-status-${loadState}`}>
+              <div
+                className={`load-status load-status-${loadState}`}
+                role="status"
+                aria-live="polite"
+              >
                 <span className="load-status-dot" aria-hidden="true" />
                 <span>{statusLabel}</span>
               </div>
+              <p className="load-status-hint">{statusHint}</p>
 
               <div className="hero-stats">
                 <article className="stat-card">
@@ -212,15 +224,21 @@ export default function Home({
                 <p className="panel-label">Shelf Preview</p>
                 <h2>Today&apos;s front table</h2>
                 <div className="mini-shelf">
-                  {shelfHighlights.map((book) => (
-                    <article className="mini-book" key={book.id}>
-                      <img src={book.cover} alt={book.title} />
-                      <div>
-                        <strong>{book.title}</strong>
-                        <span>{book.authors[0]}</span>
-                      </div>
-                    </article>
-                  ))}
+                  {shelfHighlights.length ? (
+                    shelfHighlights.map((book) => (
+                      <article className="mini-book" key={book.id}>
+                        <img src={book.cover} alt={book.title} />
+                        <div>
+                          <strong>{book.title}</strong>
+                          <span>{book.authors[0]}</span>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="mini-shelf-empty">
+                      No live highlights yet. Keep browsing below.
+                    </p>
+                  )}
                 </div>
               </section>
 

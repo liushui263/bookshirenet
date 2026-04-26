@@ -16,12 +16,14 @@ export default function Section({
   subtitle,
   books,
 }: SectionProps) {
+  const sectionLabelId = id ? `${id}-title` : undefined;
+
   return (
-    <section className="section" id={id}>
+    <section className="section" id={id} aria-labelledby={sectionLabelId}>
       <div className="section-header">
         <div>
           {eyebrow ? <p className="section-eyebrow">{eyebrow}</p> : null}
-          <h2>{title}</h2>
+          <h2 id={sectionLabelId}>{title}</h2>
           {subtitle ? <p className="section-subtitle">{subtitle}</p> : null}
         </div>
         <div className="section-count">{books.length} picks</div>

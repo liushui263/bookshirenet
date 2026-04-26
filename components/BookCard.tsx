@@ -8,6 +8,9 @@ export default function BookCard({ book }: BookCardProps) {
   const author = book.authors.join(", ");
   const languageLabel = book.language === "zh" ? "中文" : "EN";
   const publishedLabel = book.publishedDate ?? "Date pending";
+  const publishedAt = book.publishedDate
+    ? new Date(book.publishedDate).toISOString().slice(0, 10)
+    : undefined;
 
   return (
     <article className="card">
@@ -22,7 +25,13 @@ export default function BookCard({ book }: BookCardProps) {
       </div>
 
       <div className="card-body">
-        <p className="card-kicker">{publishedLabel}</p>
+        <p className="card-kicker">
+          {publishedAt ? (
+            <time dateTime={publishedAt}>{publishedLabel}</time>
+          ) : (
+            publishedLabel
+          )}
+        </p>
         <h3>{book.title}</h3>
         <p className="card-author">{author}</p>
         {book.sourceUrl ? (
