@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Image from "next/image";
 import { startTransition, useEffect, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import Section from "../components/Section";
@@ -227,7 +228,14 @@ export default function Home({
                   {shelfHighlights.length ? (
                     shelfHighlights.map((book) => (
                       <article className="mini-book" key={book.id}>
-                        <img src={book.cover} alt={book.title} />
+                        <Image
+                          className="mini-book-cover"
+                          src={book.cover}
+                          alt={book.title}
+                          width={62}
+                          height={93}
+                          sizes="62px"
+                        />
                         <div>
                           <strong>{book.title}</strong>
                           <span>{book.authors[0]}</span>

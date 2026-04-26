@@ -141,10 +141,20 @@ img {
   font-size: 0.95rem;
 }
 
+.topnav a {
+  padding: 8px 10px;
+  border-radius: 999px;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
 .topnav a:hover,
 .toplink:hover,
 .card-link:hover {
   color: var(--accent);
+}
+
+.topnav a:hover {
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .toplink {
@@ -372,7 +382,7 @@ img {
   align-items: center;
 }
 
-.mini-book img {
+.mini-book-cover {
   width: 62px;
   aspect-ratio: 2 / 3;
   object-fit: cover;
@@ -531,7 +541,7 @@ img {
   padding: 16px 16px 0;
 }
 
-.card-cover img {
+.card-cover-image {
   width: 100%;
   aspect-ratio: 2 / 3;
   object-fit: cover;
@@ -540,7 +550,7 @@ img {
   transition: transform 180ms ease;
 }
 
-.card:hover .card-cover img {
+.card:hover .card-cover-image {
   transform: scale(1.03);
 }
 
@@ -579,6 +589,10 @@ img {
   font-family: var(--serif);
   font-size: 1.22rem;
   line-height: 1.18;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-author {

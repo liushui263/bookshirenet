@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Book } from "../lib/fetchBooks";
 
 interface BookCardProps {
@@ -15,11 +16,13 @@ export default function BookCard({ book }: BookCardProps) {
   return (
     <article className="card">
       <div className="card-cover">
-        <img
+        <Image
+          className="card-cover-image"
           src={book.cover}
           alt={book.title || "Book cover"}
-          loading="lazy"
-          decoding="async"
+          width={300}
+          height={450}
+          sizes="(max-width: 420px) 100vw, (max-width: 820px) 50vw, (max-width: 1280px) 20vw, 240px"
         />
         <span className="card-chip">{languageLabel}</span>
       </div>
