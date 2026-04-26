@@ -7,7 +7,15 @@ interface BookCardProps {
 
 export default function BookCard({ book }: BookCardProps) {
   const author = book.authors.join(", ");
-  const languageLabel = book.language === "zh" ? "中文" : "EN";
+  const languageLabelMap: Record<Book["language"], string> = {
+    zh: "中文",
+    en: "EN",
+    fr: "FR",
+    es: "ES",
+    de: "DE",
+    ru: "RU",
+  };
+  const languageLabel = languageLabelMap[book.language];
   const publishedLabel = book.publishedDate ?? "Date pending";
   const publishedAt = book.publishedDate
     ? new Date(book.publishedDate).toISOString().slice(0, 10)

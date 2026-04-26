@@ -121,6 +121,35 @@ img {
   flex-direction: column;
 }
 
+.main-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.line strong {
+  min-width: 96px;
+}
+
+.special-char {
+  width: 22px;
+  text-align: center;
+  font-family: "Noto Serif SC", "STSong", "Songti SC", serif;
+  font-style: normal;
+  font-weight: 900;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: #b22222;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.14);
+}
+
 .brand-copy strong {
   font-family: var(--serif);
   font-size: 1.15rem;

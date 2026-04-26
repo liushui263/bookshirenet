@@ -8,7 +8,20 @@ import { fetchBooks, type Book, type BooksData } from "../lib/fetchBooks";
 type LoadState = "idle" | "loading" | "success" | "error";
 
 function getTotalBooks(data: BooksData) {
-  return data.enTrending.length + data.enLatest.length + data.cnLatest.length;
+  return (
+    data.zhNewPublish.length +
+    data.zhBestSellerWeek.length +
+    data.zhBestSellerMonth.length +
+    data.zhBestSellerYear.length +
+    data.enNewPublish.length +
+    data.enBestSellerWeek.length +
+    data.enBestSellerMonth.length +
+    data.enBestSellerYear.length +
+    data.frBestSellerYear.length +
+    data.esBestSellerYear.length +
+    data.deBestSellerYear.length +
+    data.ruBestSellerYear.length
+  );
 }
 
 function hasAnyBooks(data: BooksData) {
@@ -28,10 +41,21 @@ function toSerializableBook(book: Book): Book {
 }
 
 function toSerializableBooksData(data: BooksData): BooksData {
+  const cloneBooks = (books: Book[]) => books.map(toSerializableBook);
+
   return {
-    enLatest: data.enLatest.map(toSerializableBook),
-    cnLatest: data.cnLatest.map(toSerializableBook),
-    enTrending: data.enTrending.map(toSerializableBook),
+    zhNewPublish: cloneBooks(data.zhNewPublish),
+    zhBestSellerWeek: cloneBooks(data.zhBestSellerWeek),
+    zhBestSellerMonth: cloneBooks(data.zhBestSellerMonth),
+    zhBestSellerYear: cloneBooks(data.zhBestSellerYear),
+    enNewPublish: cloneBooks(data.enNewPublish),
+    enBestSellerWeek: cloneBooks(data.enBestSellerWeek),
+    enBestSellerMonth: cloneBooks(data.enBestSellerMonth),
+    enBestSellerYear: cloneBooks(data.enBestSellerYear),
+    frBestSellerYear: cloneBooks(data.frBestSellerYear),
+    esBestSellerYear: cloneBooks(data.esBestSellerYear),
+    deBestSellerYear: cloneBooks(data.deBestSellerYear),
+    ruBestSellerYear: cloneBooks(data.ruBestSellerYear),
     updatedAt: data.updatedAt,
   };
 }
@@ -99,23 +123,116 @@ export default function Home({
   const totalBooks = getTotalBooks(booksData);
 
   const shelfHighlights = [
-    booksData.enTrending[0],
-    booksData.enLatest[0],
-    booksData.cnLatest[0],
+    booksData.zhNewPublish[0],
+    booksData.enNewPublish[0],
+    booksData.frBestSellerYear[0],
   ].filter(Boolean);
 
   const digest = [
     {
       label: "Bestseller pulse",
-      value: booksData.enTrending[0]?.title ?? "Fresh rankings loading",
+      value: booksData.enBestSellerWeek[0]?.title ?? "Fresh rankings loading",
     },
     {
       label: "Newest in English",
-      value: booksData.enLatest[0]?.title ?? "New fiction arriving soon",
+      value: booksData.enNewPublish[0]?.title ?? "New fiction arriving soon",
     },
     {
       label: "Newest in Chinese",
-      value: booksData.cnLatest[0]?.title ?? "中文书单正在更新",
+      value: booksData.zhNewPublish[0]?.title ?? "中文书单正在更新",
+    },
+  ];
+
+  const catalogSections: Array<{
+    id: string;
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    books: Book[];
+  }> = [
+    {
+      id: "zh-new-publish",
+      eyebrow: "中文",
+      title: "Chinese: New Publish (Top 10)",
+      subtitle: "Newest Chinese-language fiction titles.",
+      books: booksData.zhNewPublish,
+    },
+    {
+      id: "zh-best-week",
+      eyebrow: "中文",
+      title: "Chinese: Best Seller Last 1 Week",
+      subtitle: "Recent Chinese best sellers published within the last 7 days.",
+      books: booksData.zhBestSellerWeek,
+    },
+    {
+      id: "zh-best-month",
+      eyebrow: "中文",
+      title: "Chinese: Best Seller Last 1 Month",
+      subtitle: "Chinese best sellers within a 30-day publish window.",
+      books: booksData.zhBestSellerMonth,
+    },
+    {
+      id: "zh-best-year",
+      eyebrow: "中文",
+      title: "Chinese: Best Seller Last 1 Year",
+      subtitle: "Chinese best sellers within a 365-day publish window.",
+      books: booksData.zhBestSellerYear,
+    },
+    {
+      id: "en-new-publish",
+      eyebrow: "English",
+      title: "English: New Publish (Top 10)",
+      subtitle: "Newest English fiction titles.",
+      books: booksData.enNewPublish,
+    },
+    {
+      id: "en-best-week",
+      eyebrow: "English",
+      title: "English: Best Seller Last 1 Week",
+      subtitle: "Recent English best sellers published within 7 days.",
+      books: booksData.enBestSellerWeek,
+    },
+    {
+      id: "en-best-month",
+      eyebrow: "English",
+      title: "English: Best Seller Last 1 Month",
+      subtitle: "English best sellers within a 30-day publish window.",
+      books: booksData.enBestSellerMonth,
+    },
+    {
+      id: "en-best-year",
+      eyebrow: "English",
+      title: "English: Best Seller Last 1 Year",
+      subtitle: "English best sellers within a 365-day publish window.",
+      books: booksData.enBestSellerYear,
+    },
+    {
+      id: "fr-best-year",
+      eyebrow: "French",
+      title: "French: Best Seller Last 1 Year",
+      subtitle: "French best sellers within a 365-day publish window.",
+      books: booksData.frBestSellerYear,
+    },
+    {
+      id: "es-best-year",
+      eyebrow: "Spanish",
+      title: "Spanish: Best Seller Last 1 Year",
+      subtitle: "Spanish best sellers within a 365-day publish window.",
+      books: booksData.esBestSellerYear,
+    },
+    {
+      id: "de-best-year",
+      eyebrow: "German",
+      title: "German: Best Seller Last 1 Year",
+      subtitle: "German best sellers within a 365-day publish window.",
+      books: booksData.deBestSellerYear,
+    },
+    {
+      id: "ru-best-year",
+      eyebrow: "Russian",
+      title: "Russian: Best Seller Last 1 Year",
+      subtitle: "Russian best sellers within a 365-day publish window.",
+      books: booksData.ruBestSellerYear,
     },
   ];
 
@@ -164,9 +281,9 @@ export default function Home({
             </a>
 
           <nav className="topnav" aria-label="Primary">
-            <a href="#trending-en">Bestsellers</a>
-            <a href="#latest-en">New in English</a>
-            <a href="#latest-zh">中文新书</a>
+            <a href="#zh-new-publish">中文榜单</a>
+            <a href="#en-new-publish">English Lists</a>
+            <a href="#fr-best-year">EU Language Lists</a>
           </nav>
 
           <a className="toplink" href="/api/books">
@@ -279,30 +396,17 @@ export default function Home({
 
           <div className="catalog-layout">
             <div className="catalog-main">
-              <Section
-                id="trending-en"
-                eyebrow="Chart movers"
-                title="Top Selling English Books"
-                subtitle="The high-visibility shelf: books that feel closest to a Goodreads bestseller strip."
-                books={booksData.enTrending}
-                isRefreshing={loadState === "loading"}
-              />
-              <Section
-                id="latest-en"
-                eyebrow="New release wall"
-                title="Latest English Fiction"
-                subtitle="Fresh arrivals with a cleaner, editorial presentation for browsing at a glance."
-                books={booksData.enLatest}
-                isRefreshing={loadState === "loading"}
-              />
-              <Section
-                id="latest-zh"
-                eyebrow="中文精选"
-                title="Chinese New Books"
-                subtitle="A quieter 豆瓣-style corner for Chinese-language recent titles."
-                books={booksData.cnLatest}
-                isRefreshing={loadState === "loading"}
-              />
+              {catalogSections.map((section) => (
+                <Section
+                  key={section.id}
+                  id={section.id}
+                  eyebrow={section.eyebrow}
+                  title={section.title}
+                  subtitle={section.subtitle}
+                  books={section.books}
+                  isRefreshing={loadState === "loading"}
+                />
+              ))}
             </div>
 
             <aside className="catalog-sidebar">
@@ -320,16 +424,16 @@ export default function Home({
                 <p className="panel-label">Language Mix</p>
                 <div className="sidebar-metrics">
                   <div>
-                    <strong>{booksData.enTrending.length}</strong>
-                    <span>Trending EN</span>
-                  </div>
-                  <div>
-                    <strong>{booksData.enLatest.length}</strong>
-                    <span>New EN</span>
-                  </div>
-                  <div>
-                    <strong>{booksData.cnLatest.length}</strong>
+                    <strong>{booksData.zhNewPublish.length}</strong>
                     <span>中文新书</span>
+                  </div>
+                  <div>
+                    <strong>{booksData.enNewPublish.length}</strong>
+                    <span>English New</span>
+                  </div>
+                  <div>
+                    <strong>{booksData.frBestSellerYear.length + booksData.esBestSellerYear.length + booksData.deBestSellerYear.length + booksData.ruBestSellerYear.length}</strong>
+                    <span>EU/RU yearly best</span>
                   </div>
                 </div>
               </section>

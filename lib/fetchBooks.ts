@@ -1,4 +1,4 @@
-export type BookLanguage = "en" | "zh";
+export type BookLanguage = "en" | "zh" | "fr" | "es" | "de" | "ru";
 
 export interface Book {
   id: string;
@@ -11,9 +11,18 @@ export interface Book {
 }
 
 export interface BooksData {
-  enLatest: Book[];
-  cnLatest: Book[];
-  enTrending: Book[];
+  zhNewPublish: Book[];
+  zhBestSellerWeek: Book[];
+  zhBestSellerMonth: Book[];
+  zhBestSellerYear: Book[];
+  enNewPublish: Book[];
+  enBestSellerWeek: Book[];
+  enBestSellerMonth: Book[];
+  enBestSellerYear: Book[];
+  frBestSellerYear: Book[];
+  esBestSellerYear: Book[];
+  deBestSellerYear: Book[];
+  ruBestSellerYear: Book[];
   updatedAt: string;
 }
 
@@ -39,6 +48,7 @@ const FALLBACK_COVER = "https://via.placeholder.com/128x180?text=Book";
 const GOOGLE_BOOKS_ENDPOINT = "https://www.googleapis.com/books/v1/volumes";
 const REQUEST_TIMEOUT_MS = 8000;
 const MAX_RETRIES = 2;
+const LIST_SIZE = 10;
 const RETRYABLE_HTTP_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const RETRYABLE_ERROR_CODES = new Set([
   "EAI_AGAIN",
@@ -229,40 +239,140 @@ async function fetchGoogleBooks(params: {
     .filter((item): item is Book => item !== null);
 }
 
-export async function fetchLatestEnglishBooks() {
-  return fetchGoogleBooks({
-    query: "subject:fiction",
-    language: "en",
-    orderBy: "newest",
+function parsePublishedDate(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function filterByRecentDays(books: Book[], days: number) {
+  const now = Date.now();
+  const maxAge = days * 24 * 60 * 60 * 1000;
+
+  return books.filter((book) => {
+    const publishedDate = parsePublishedDate(book.publishedDate);
+    if (!publishedDate) {
+      return false;
+    }
+    return now - publishedDate.getTime() <= maxAge;
   });
 }
 
-export async function fetchLatestChineseBooks() {
+function takeTop(books: Book[], size = LIST_SIZE) {
+  return books.slice(0, size);
+}
+
+async function fetchNewPublishBooks(language: BookLanguage, query: string) {
   return fetchGoogleBooks({
-    query: "小说",
-    language: "zh",
+    query,
+    language,
     orderBy: "newest",
+    maxResults: LIST_SIZE,
   });
 }
 
-export async function fetchTrendingEnglishBooks() {
+async function fetchBestSellerPool(language: BookLanguage, query: string) {
   return fetchGoogleBooks({
-    query: "bestseller",
-    language: "en",
+    query,
+    language,
+    maxResults: 40,
   });
+}
+
+async function fetchBestSellerByPeriod(params: {
+  language: BookLanguage;
+  query: string;
+  days: number;
+}) {
+  const pool = await fetchBestSellerPool(params.language, params.query);
+  return takeTop(filterByRecentDays(pool, params.days));
 }
 
 export async function fetchBooks(): Promise<BooksData> {
-  const [enLatest, cnLatest, enTrending] = await Promise.all([
-    fetchLatestEnglishBooks(),
-    fetchLatestChineseBooks(),
-    fetchTrendingEnglishBooks(),
+  const [
+    zhNewPublish,
+    zhBestSellerWeek,
+    zhBestSellerMonth,
+    zhBestSellerYear,
+    enNewPublish,
+    enBestSellerWeek,
+    enBestSellerMonth,
+    enBestSellerYear,
+    frBestSellerYear,
+    esBestSellerYear,
+    deBestSellerYear,
+    ruBestSellerYear,
+  ] = await Promise.all([
+    fetchNewPublishBooks("zh", "小说"),
+    fetchBestSellerByPeriod({
+      language: "zh",
+      query: "畅销 小说",
+      days: 7,
+    }),
+    fetchBestSellerByPeriod({
+      language: "zh",
+      query: "畅销 小说",
+      days: 30,
+    }),
+    fetchBestSellerByPeriod({
+      language: "zh",
+      query: "畅销 小说",
+      days: 365,
+    }),
+    fetchNewPublishBooks("en", "subject:fiction"),
+    fetchBestSellerByPeriod({
+      language: "en",
+      query: "bestseller fiction",
+      days: 7,
+    }),
+    fetchBestSellerByPeriod({
+      language: "en",
+      query: "bestseller fiction",
+      days: 30,
+    }),
+    fetchBestSellerByPeriod({
+      language: "en",
+      query: "bestseller fiction",
+      days: 365,
+    }),
+    fetchBestSellerByPeriod({
+      language: "fr",
+      query: "bestseller fiction",
+      days: 365,
+    }),
+    fetchBestSellerByPeriod({
+      language: "es",
+      query: "bestseller fiction",
+      days: 365,
+    }),
+    fetchBestSellerByPeriod({
+      language: "de",
+      query: "bestseller fiction",
+      days: 365,
+    }),
+    fetchBestSellerByPeriod({
+      language: "ru",
+      query: "bestseller fiction",
+      days: 365,
+    }),
   ]);
 
   return {
-    enLatest,
-    cnLatest,
-    enTrending,
+    zhNewPublish: takeTop(zhNewPublish),
+    zhBestSellerWeek: takeTop(zhBestSellerWeek),
+    zhBestSellerMonth: takeTop(zhBestSellerMonth),
+    zhBestSellerYear: takeTop(zhBestSellerYear),
+    enNewPublish: takeTop(enNewPublish),
+    enBestSellerWeek: takeTop(enBestSellerWeek),
+    enBestSellerMonth: takeTop(enBestSellerMonth),
+    enBestSellerYear: takeTop(enBestSellerYear),
+    frBestSellerYear: takeTop(frBestSellerYear),
+    esBestSellerYear: takeTop(esBestSellerYear),
+    deBestSellerYear: takeTop(deBestSellerYear),
+    ruBestSellerYear: takeTop(ruBestSellerYear),
     updatedAt: new Date().toISOString(),
   };
 }
