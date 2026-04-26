@@ -36,6 +36,20 @@ interface GoogleBooksResponse {
 }
 
 const FALLBACK_COVER = "https://via.placeholder.com/128x180?text=Book";
+const GOOGLE_BOOKS_ENDPOINT = "https://www.googleapis.com/books/v1/volumes";
+const REQUEST_TIMEOUT_MS = 8000;
+const MAX_RETRIES = 2;
+const RETRYABLE_HTTP_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const RETRYABLE_ERROR_CODES = new Set([
+  "EAI_AGAIN",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+]);
+
+function getGoogleBooksApiKey() {
+  return process.env.GOOGLE_BOOKS_API_KEY;
+}
 
 function buildGoogleBooksUrl(params: {
   query: string;
@@ -43,6 +57,12 @@ function buildGoogleBooksUrl(params: {
   maxResults?: number;
   orderBy?: "newest";
 }) {
+  const apiKey = getGoogleBooksApiKey();
+
+  if (!apiKey) {
+    return null;
+  }
+
   const searchParams = new URLSearchParams({
     q: params.query,
     printType: "books",
@@ -54,24 +74,108 @@ function buildGoogleBooksUrl(params: {
     searchParams.set("orderBy", params.orderBy);
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || "AIzaSyCnR0QnBNpsutE-5giOl4snWWWqGl633gM";
   searchParams.set("key", apiKey);
-  return `https://www.googleapis.com/books/v1/volumes?${searchParams.toString()}`;
+  return `${GOOGLE_BOOKS_ENDPOINT}?${searchParams.toString()}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const maybeCode = (error as { code?: string }).code;
+  if (typeof maybeCode === "string") {
+    return maybeCode;
+  }
+
+  const cause = (error as { cause?: { code?: string } }).cause;
+  if (cause && typeof cause.code === "string") {
+    return cause.code;
+  }
+
+  return undefined;
+}
+
+function shouldRetry(error: unknown, status?: number) {
+  if (typeof status === "number" && RETRYABLE_HTTP_STATUS.has(status)) {
+    return true;
+  }
+
+  const code = getErrorCode(error);
+  return code ? RETRYABLE_ERROR_CODES.has(code) : false;
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const response = await fetch(url);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        const error = new Error(`Request failed with status ${status}`);
+
+        if (attempt < MAX_RETRIES && shouldRetry(error, status)) {
+          await sleep(250 * (attempt + 1));
+          continue;
+        }
+
+        console.error(`Book API request failed with status ${status}`, {
+          url,
+          attempt: attempt + 1,
+        });
+        return null;
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      const code = getErrorCode(error);
+      const canRetry = attempt < MAX_RETRIES && shouldRetry(error);
+
+      if (canRetry) {
+        await sleep(250 * (attempt + 1));
+        continue;
+      }
+
+      console.error("Failed to fetch book data after retries", {
+        url,
+        attempt: attempt + 1,
+        code,
+        error,
+      });
+      return null;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return (await response.json()) as T;
-  } catch (error) {
-    console.error(`Failed to fetch book data from ${url}`, error);
-    return null;
   }
+
+  console.error(`Failed to fetch book data from ${url}: retries exhausted`);
+  return null;
+}
+
+let missingApiKeyWarned = false;
+
+function ensureApiKey(): boolean {
+  if (getGoogleBooksApiKey()) {
+    return true;
+  }
+
+  if (!missingApiKeyWarned) {
+    console.error(
+      "GOOGLE_BOOKS_API_KEY is not set. Returning empty lists for Google Books queries."
+    );
+    missingApiKeyWarned = true;
+  }
+
+  return false;
 }
 
 function toHttps(url?: string) {
@@ -109,7 +213,15 @@ async function fetchGoogleBooks(params: {
   orderBy?: "newest";
   maxResults?: number;
 }): Promise<Book[]> {
+  if (!ensureApiKey()) {
+    return [];
+  }
+
   const url = buildGoogleBooksUrl(params);
+  if (!url) {
+    return [];
+  }
+
   const data = await fetchJson<GoogleBooksResponse>(url);
 
   return (data?.items ?? [])
