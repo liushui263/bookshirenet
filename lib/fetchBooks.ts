@@ -44,8 +44,22 @@ interface GoogleBooksResponse {
   items?: GoogleBooksVolume[];
 }
 
+interface OpenLibraryWork {
+  key?: string;
+  title?: string;
+  author_name?: string[];
+  first_publish_year?: number;
+  cover_i?: number;
+  language?: string[];
+}
+
+interface OpenLibrarySearchResponse {
+  docs?: OpenLibraryWork[];
+}
+
 const FALLBACK_COVER = "https://via.placeholder.com/128x180?text=Book";
 const GOOGLE_BOOKS_ENDPOINT = "https://www.googleapis.com/books/v1/volumes";
+const OPEN_LIBRARY_SEARCH_ENDPOINT = "https://openlibrary.org/search.json";
 const REQUEST_TIMEOUT_MS = 8000;
 const MAX_RETRIES = 2;
 const LIST_SIZE = 10;
@@ -196,6 +210,74 @@ function toHttps(url?: string) {
   return url.replace(/^http:\/\//i, "https://");
 }
 
+function getOpenLibraryLanguageCode(language: BookLanguage) {
+  switch (language) {
+    case "zh":
+      return "chi";
+    case "en":
+      return "eng";
+    case "fr":
+      return "fre";
+    case "es":
+      return "spa";
+    case "de":
+      return "ger";
+    case "ru":
+      return "rus";
+    default:
+      return "eng";
+  }
+}
+
+function buildOpenLibrarySearchUrl(params: {
+  language: BookLanguage;
+  subject?: string;
+  limit?: number;
+  sort?: "editions" | "new";
+}) {
+  const languageCode = getOpenLibraryLanguageCode(params.language);
+  const query = params.subject
+    ? `subject:${params.subject} language:${languageCode}`
+    : `language:${languageCode}`;
+
+  const searchParams = new URLSearchParams({
+    q: query,
+    limit: String(params.limit ?? 40),
+    fields: "key,title,author_name,first_publish_year,cover_i,language",
+  });
+
+  if (params.sort) {
+    searchParams.set("sort", params.sort);
+  }
+
+  return `${OPEN_LIBRARY_SEARCH_ENDPOINT}?${searchParams.toString()}`;
+}
+
+function normalizeOpenLibraryBook(
+  item: OpenLibraryWork,
+  language: BookLanguage
+): Book | null {
+  if (!item.title || !item.key) {
+    return null;
+  }
+
+  const cover = item.cover_i
+    ? `https://covers.openlibrary.org/b/id/${item.cover_i}-L.jpg`
+    : FALLBACK_COVER;
+
+  return {
+    id: `ol-${item.key}`,
+    title: item.title,
+    authors: item.author_name?.length ? item.author_name : ["Unknown author"],
+    cover,
+    language,
+    publishedDate: item.first_publish_year
+      ? `${item.first_publish_year}-01-01`
+      : undefined,
+    sourceUrl: `https://openlibrary.org${item.key}`,
+  };
+}
+
 function normalizeGoogleBook(
   item: GoogleBooksVolume,
   language: BookLanguage
@@ -239,6 +321,20 @@ async function fetchGoogleBooks(params: {
     .filter((item): item is Book => item !== null);
 }
 
+async function fetchOpenLibraryBooks(params: {
+  language: BookLanguage;
+  subject?: string;
+  limit?: number;
+  sort?: "editions" | "new";
+}): Promise<Book[]> {
+  const url = buildOpenLibrarySearchUrl(params);
+  const data = await fetchJson<OpenLibrarySearchResponse>(url);
+
+  return (data?.docs ?? [])
+    .map((item) => normalizeOpenLibraryBook(item, params.language))
+    .filter((item): item is Book => item !== null);
+}
+
 function parsePublishedDate(value?: string) {
   if (!value) {
     return null;
@@ -275,6 +371,17 @@ async function fetchNewPublishBooks(language: BookLanguage, query: string) {
 }
 
 async function fetchBestSellerPool(language: BookLanguage, query: string) {
+  const openLibraryPool = await fetchOpenLibraryBooks({
+    language,
+    subject: "fiction",
+    limit: 40,
+    sort: "editions",
+  });
+
+  if (openLibraryPool.length > 0) {
+    return openLibraryPool;
+  }
+
   return fetchGoogleBooks({
     query,
     language,

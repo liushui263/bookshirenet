@@ -64,6 +64,7 @@ export default function Home({
   data,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
   const [booksData, setBooksData] = useState(data);
+  const [activeTab, setActiveTab] = useState<"zh" | "en" | "intl">("zh");
   const [loadState, setLoadState] = useState<LoadState>(
     hasAnyBooks(data) ? "idle" : "loading"
   );
@@ -119,6 +120,7 @@ export default function Home({
     timeStyle: "short",
     timeZone: "America/Chicago",
   }).format(new Date(booksData.updatedAt));
+  const listUpdatedAt = `Updated ${lastRefreshed} CT`;
 
   const totalBooks = getTotalBooks(booksData);
 
@@ -236,6 +238,12 @@ export default function Home({
     },
   ];
 
+  const tabSections = {
+    zh: catalogSections.slice(0, 4),
+    en: catalogSections.slice(4, 8),
+    intl: catalogSections.slice(8, 12),
+  } as const;
+
   const statusLabel =
     loadState === "loading"
       ? "Loading live shelf..."
@@ -303,7 +311,7 @@ export default function Home({
               </p>
 
               <div className="hero-actions">
-                <a className="button button-primary" href="#latest-en">
+                <a className="button button-primary" href="#en-new-publish">
                   Browse New Releases
                 </a>
                 <a className="button button-secondary" href="/api/books">
@@ -396,7 +404,31 @@ export default function Home({
 
           <div className="catalog-layout">
             <div className="catalog-main">
-              {catalogSections.map((section) => (
+              <section className="list-tabs" aria-label="List groups">
+                <button
+                  type="button"
+                  className={`list-tab ${activeTab === "zh" ? "list-tab-active" : ""}`}
+                  onClick={() => setActiveTab("zh")}
+                >
+                  中文 Lists
+                </button>
+                <button
+                  type="button"
+                  className={`list-tab ${activeTab === "en" ? "list-tab-active" : ""}`}
+                  onClick={() => setActiveTab("en")}
+                >
+                  English Lists
+                </button>
+                <button
+                  type="button"
+                  className={`list-tab ${activeTab === "intl" ? "list-tab-active" : ""}`}
+                  onClick={() => setActiveTab("intl")}
+                >
+                  French/Spanish/German/Russian
+                </button>
+              </section>
+
+              {tabSections[activeTab].map((section) => (
                 <Section
                   key={section.id}
                   id={section.id}
@@ -405,6 +437,12 @@ export default function Home({
                   subtitle={section.subtitle}
                   books={section.books}
                   isRefreshing={loadState === "loading"}
+                  sourceLabel={
+                    activeTab === "intl" || section.id.includes("best")
+                      ? "Source: OpenLibrary popularity + Google Books fallback"
+                      : "Source: Google Books newest"
+                  }
+                  updatedAtLabel={listUpdatedAt}
                 />
               ))}
             </div>

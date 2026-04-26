@@ -8,6 +8,8 @@ interface SectionProps {
   subtitle?: string;
   books: Book[];
   isRefreshing?: boolean;
+  sourceLabel?: string;
+  updatedAtLabel?: string;
 }
 
 export default function Section({
@@ -17,6 +19,8 @@ export default function Section({
   subtitle,
   books,
   isRefreshing = false,
+  sourceLabel,
+  updatedAtLabel,
 }: SectionProps) {
   const sectionLabelId = id ? `${id}-title` : undefined;
   const showSkeleton = isRefreshing && books.length === 0;
@@ -30,6 +34,14 @@ export default function Section({
           {subtitle ? <p className="section-subtitle">{subtitle}</p> : null}
         </div>
         <div className="section-meta">
+          {sourceLabel ? (
+            <span className="section-source" title={sourceLabel}>
+              {sourceLabel}
+            </span>
+          ) : null}
+          {updatedAtLabel ? (
+            <span className="section-updated">{updatedAtLabel}</span>
+          ) : null}
           {isRefreshing ? (
             <span className="section-refreshing" aria-live="polite">
               Refreshing...

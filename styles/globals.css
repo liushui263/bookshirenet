@@ -485,6 +485,35 @@ img {
   gap: 26px;
 }
 
+.list-tabs {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-tab {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.list-tab:hover {
+  color: var(--accent);
+  border-color: rgba(53, 88, 71, 0.3);
+}
+
+.list-tab-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: transparent;
+}
+
 .section {
   padding: 28px;
   border-radius: var(--radius-xl);
@@ -513,6 +542,20 @@ img {
   color: var(--muted);
   background: rgba(255, 255, 255, 0.62);
   font-size: 0.82rem;
+}
+
+.section-source,
+.section-updated {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.62);
+  font-size: 0.8rem;
+  max-width: 28ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .section h2 {
