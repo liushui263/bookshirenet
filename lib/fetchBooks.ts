@@ -378,6 +378,7 @@ async function fetchBestSellerPool(language: BookLanguage, query: string) {
     query,
     language,
     maxResults: 40,
+    orderBy: "newest",
   });
 
   if (googlePool.length > 0) {
