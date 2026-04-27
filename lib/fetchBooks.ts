@@ -374,21 +374,22 @@ async function fetchNewPublishBooks(language: BookLanguage, query: string) {
 }
 
 async function fetchBestSellerPool(language: BookLanguage, query: string) {
-  const openLibraryPool = await fetchOpenLibraryBooks({
-    language,
-    subject: "fiction",
-    limit: 40,
-    sort: "editions",
-  });
-
-  if (openLibraryPool.length > 0) {
-    return openLibraryPool;
-  }
-
-  return fetchGoogleBooks({
+  const googlePool = await fetchGoogleBooks({
     query,
     language,
     maxResults: 40,
+  });
+
+  if (googlePool.length > 0) {
+    return googlePool;
+  }
+
+  // Fallback to Open Library if Google Books is exhausted/rate limited
+  return fetchOpenLibraryBooks({
+    language,
+    subject: "fiction",
+    limit: 40,
+    sort: "new",
   });
 }
 
