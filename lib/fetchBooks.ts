@@ -133,7 +133,7 @@ function shouldRetry(error: unknown, status?: number) {
   return code ? RETRYABLE_ERROR_CODES.has(code) : false;
 }
 
-async function fetchJson<T>(url: string): Promise<T | null> {
+async function fetchJson<T>(url: string, headers?: HeadersInit): Promise<T | null> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -141,6 +141,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     try {
       const response = await fetch(url, {
         signal: controller.signal,
+        headers,
       });
 
       if (!response.ok) {
@@ -314,7 +315,9 @@ async function fetchGoogleBooks(params: {
     return [];
   }
 
-  const data = await fetchJson<GoogleBooksResponse>(url);
+  const data = await fetchJson<GoogleBooksResponse>(url, {
+    Referer: "https://bookshire.net/",
+  });
 
   return (data?.items ?? [])
     .map((item) => normalizeGoogleBook(item, params.language))
