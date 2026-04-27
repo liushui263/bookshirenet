@@ -400,7 +400,15 @@ async function fetchBestSellerByPeriod(params: {
   days: number;
 }) {
   const pool = await fetchBestSellerPool(params.language, params.query);
-  return takeTop(filterByRecentDays(pool, params.days));
+  const filtered = filterByRecentDays(pool, params.days);
+
+  // If date filtering wipes out all results (e.g., due to missing specific month/day data),
+  // gracefully fallback to the unfiltered newest pool to prevent an empty shelf.
+  if (filtered.length === 0 && pool.length > 0) {
+    return takeTop(pool);
+  }
+
+  return takeTop(filtered);
 }
 
 export async function fetchBooks(): Promise<BooksData> {
