@@ -426,12 +426,12 @@ async function fetchNewPublishBooks(language: BookLanguage, query: string) {
   });
 }
 
-async function fetchBestSellerPool(language: BookLanguage, query: string) {
+async function fetchBestSellerPool(language: BookLanguage, query: string, sortBy?: "relevance" | "newest") {
   const googlePool = await fetchGoogleBooks({
     query,
     language,
     maxResults: 40,
-    orderBy: "newest",
+    orderBy: sortBy === "relevance" ? undefined : "newest",
   });
 
   if (googlePool.length > 0) {
@@ -451,14 +451,21 @@ async function fetchBestSellerByPeriod(params: {
   language: BookLanguage;
   query: string;
   days: number;
+  period: "week" | "month" | "year";
 }) {
-  const pool = await fetchBestSellerPool(params.language, params.query);
+  // Use different strategies based on time period to ensure variety
+  const sortBy = params.period === "year" ? "relevance" : undefined;
+  const pool = await fetchBestSellerPool(params.language, params.query, sortBy);
   const filtered = filterByRecentDays(pool, params.days);
 
   // If date filtering wipes out all results (e.g., due to missing specific month/day data),
-  // gracefully fallback to the unfiltered newest pool to prevent an empty shelf.
+  // gracefully fallback with period-specific offset to prevent empty shelf and ensure variety
   if (filtered.length === 0 && pool.length > 0) {
-    return takeTop(pool);
+    // Use different offsets for different periods to avoid showing the same books
+    const offsets = { week: 0, month: 3, year: 6 };
+    const offset = offsets[params.period] ?? 0;
+    const result = pool.slice(offset, offset + LIST_SIZE);
+    return result.length > 0 ? result : takeTop(pool);
   }
 
   return takeTop(filtered);
@@ -484,52 +491,62 @@ export async function fetchBooks(): Promise<BooksData> {
       language: "zh",
       query: "畅销 小说",
       days: 7,
+      period: "week",
     }),
     fetchBestSellerByPeriod({
       language: "zh",
       query: "畅销 小说",
       days: 30,
+      period: "month",
     }),
     fetchBestSellerByPeriod({
       language: "zh",
       query: "畅销 小说",
       days: 365,
+      period: "year",
     }),
     fetchNewPublishBooks("en", "subject:fiction"),
     fetchBestSellerByPeriod({
       language: "en",
       query: "bestseller fiction",
       days: 7,
+      period: "week",
     }),
     fetchBestSellerByPeriod({
       language: "en",
       query: "bestseller fiction",
       days: 30,
+      period: "month",
     }),
     fetchBestSellerByPeriod({
       language: "en",
       query: "bestseller fiction",
       days: 365,
+      period: "year",
     }),
     fetchBestSellerByPeriod({
       language: "fr",
       query: "bestseller fiction",
       days: 365,
+      period: "year",
     }),
     fetchBestSellerByPeriod({
       language: "es",
       query: "bestseller fiction",
       days: 365,
+      period: "year",
     }),
     fetchBestSellerByPeriod({
       language: "de",
       query: "bestseller fiction",
       days: 365,
+      period: "year",
     }),
     fetchBestSellerByPeriod({
       language: "ru",
       query: "bestseller fiction",
       days: 365,
+      period: "year",
     }),
   ]);
 
