@@ -3,10 +3,17 @@ import type { Book } from "../lib/fetchBooks";
 
 interface BookCardProps {
   book: Book;
+  maxTitleLength?: number;
 }
 
-export default function BookCard({ book }: BookCardProps) {
+function truncateTitle(title: string, maxLength: number = 80): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength).trim() + "...";
+}
+
+export default function BookCard({ book, maxTitleLength = 80 }: BookCardProps) {
   const author = book.authors.join(", ");
+  const displayTitle = truncateTitle(book.title, maxTitleLength);
   const languageLabelMap: Record<Book["language"], string> = {
     zh: "中文",
     en: "EN",
@@ -43,7 +50,7 @@ export default function BookCard({ book }: BookCardProps) {
             publishedLabel
           )}
         </p>
-        <h3>{book.title}</h3>
+        <h3>{displayTitle}</h3>
         <p className="card-author">{author}</p>
         {book.sourceUrl ? (
           <a

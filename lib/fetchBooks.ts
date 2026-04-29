@@ -268,7 +268,7 @@ function normalizeOpenLibraryBook(
 
   return {
     id: `ol-${item.key}`,
-    title: item.title,
+    title: cleanTitle(item.title),
     authors: item.author_name?.length ? item.author_name : ["Unknown author"],
     cover,
     language,
@@ -277,6 +277,36 @@ function normalizeOpenLibraryBook(
       : undefined,
     sourceUrl: `https://openlibrary.org${item.key}`,
   };
+}
+
+function cleanTitle(title: string): string {
+  // Remove common suffixes that clutter titles
+  const suffixesToRemove = [
+    /: A Novel$/i,
+    /: A Memoir$/i,
+    /: A Biography$/i,
+    /: A History$/i,
+    /: A Thriller$/i,
+    /: A Mystery$/i,
+    /: A Love Story$/i,
+    /^A Novel: /i,
+    /^A Memoir: /i,
+    / - A Novel$/i,
+    / - A Memoir$/i,
+  ];
+
+  let cleaned = title.trim();
+  for (const suffix of suffixesToRemove) {
+    cleaned = cleaned.replace(suffix, "");
+  }
+
+  // Remove text in parentheses at the end if it's just a subtitle
+  cleaned = cleaned.replace(/\s*\([^)]*edition[^)]*\)$/i, "").trim();
+
+  // Remove multiple spaces
+  cleaned = cleaned.replace(/\s+/g, " ");
+
+  return cleaned;
 }
 
 function normalizeGoogleBook(
@@ -291,7 +321,7 @@ function normalizeGoogleBook(
 
   return {
     id: item.id ?? `${language}-${info.title}`,
-    title: info.title,
+    title: cleanTitle(info.title),
     authors: info.authors?.length ? info.authors : ["Unknown author"],
     cover: toHttps(info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail),
     language,
@@ -338,11 +368,34 @@ async function fetchOpenLibraryBooks(params: {
     .filter((item): item is Book => item !== null);
 }
 
-function parsePublishedDate(value?: string) {
+function parsePublishedDate(value?: string): Date | null {
   if (!value) {
     return null;
   }
 
+  // Handle YYYY-MM-DD format
+  const isoMatch = value.match(/^(\d{4})-(\d{2})?-(\d{2})?$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const m = month ? parseInt(month) - 1 : 0;
+    const d = day ? parseInt(day) : 1;
+    return new Date(parseInt(year), m, d);
+  }
+
+  // Handle YYYY format (common from OpenLibrary)
+  const yearMatch = value.match(/^(\d{4})$/);
+  if (yearMatch) {
+    return new Date(parseInt(yearMatch[1]), 0, 1);
+  }
+
+  // Handle YYYY-MM format
+  const yearMonthMatch = value.match(/^(\d{4})-(\d{2})$/);
+  if (yearMonthMatch) {
+    const [, year, month] = yearMonthMatch;
+    return new Date(parseInt(year), parseInt(month) - 1, 1);
+  }
+
+  // Fallback to native Date parsing
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
