@@ -57,7 +57,7 @@ interface OpenLibrarySearchResponse {
   docs?: OpenLibraryWork[];
 }
 
-const FALLBACK_COVER = "https://via.placeholder.com/128x180?text=Book";
+export const FALLBACK_COVER = "/cover-placeholder.svg";
 const GOOGLE_BOOKS_ENDPOINT = "https://www.googleapis.com/books/v1/volumes";
 const OPEN_LIBRARY_SEARCH_ENDPOINT = "https://openlibrary.org/search.json";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -400,169 +400,157 @@ function parsePublishedDate(value?: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function filterByRecentDays(books: Book[], days: number) {
-  const now = Date.now();
-  const maxAge = days * 24 * 60 * 60 * 1000;
-
-  return books.filter((book) => {
-    const publishedDate = parsePublishedDate(book.publishedDate);
-    if (!publishedDate) {
-      return false;
-    }
-    return now - publishedDate.getTime() <= maxAge;
-  });
-}
-
 function takeTop(books: Book[], size = LIST_SIZE) {
   return books.slice(0, size);
 }
 
-async function fetchNewPublishBooks(language: BookLanguage, query: string) {
-  return fetchGoogleBooks({
-    query,
-    language,
-    orderBy: "newest",
-    maxResults: LIST_SIZE,
+function bookKey(book: Book) {
+  const title = book.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const author = (book.authors[0] ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return `${title}|${author}`;
+}
+
+// Google Books often returns several editions of the same title.
+function dedupeBooks(books: Book[]) {
+  const seen = new Set<string>();
+  return books.filter((book) => {
+    const key = bookKey(book);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
   });
 }
 
-async function fetchBestSellerPool(language: BookLanguage, query: string, sortBy?: "relevance" | "newest") {
+async function fetchNewPublishBooks(language: BookLanguage, query: string) {
+  const books = await fetchGoogleBooks({
+    query,
+    language,
+    orderBy: "newest",
+    maxResults: 20,
+  });
+  return takeTop(dedupeBooks(books));
+}
+
+async function fetchPopularPool(
+  language: BookLanguage,
+  query: string,
+  orderBy?: "newest"
+) {
   const googlePool = await fetchGoogleBooks({
     query,
     language,
     maxResults: 40,
-    orderBy: sortBy === "relevance" ? undefined : "newest",
+    orderBy,
   });
 
   if (googlePool.length > 0) {
-    return googlePool;
+    return dedupeBooks(googlePool);
   }
 
   // Fallback to Open Library if Google Books is exhausted/rate limited
-  return fetchOpenLibraryBooks({
-    language,
-    subject: "fiction",
-    limit: 40,
-    sort: "new",
-  });
+  return dedupeBooks(
+    await fetchOpenLibraryBooks({
+      language,
+      subject: "fiction",
+      limit: 40,
+      sort: "new",
+    })
+  );
 }
 
-async function fetchBestSellerByPeriod(params: {
-  language: BookLanguage;
-  query: string;
-  days: number;
-  period: "week" | "month" | "year";
-}) {
-  // Use different strategies based on time period to ensure variety
-  const sortBy = params.period === "year" ? "relevance" : undefined;
-  const pool = await fetchBestSellerPool(params.language, params.query, sortBy);
-  const filtered = filterByRecentDays(pool, params.days);
+/**
+ * Builds a shelf from candidate books, skipping anything already shown on
+ * another shelf. Prefers books inside the publish window and tops up with the
+ * remaining candidates so a shelf is never empty while the pool has books.
+ */
+function buildShelf(
+  candidates: Book[],
+  used: Set<string>,
+  maxAgeDays: number
+) {
+  const now = Date.now();
+  const maxAge = maxAgeDays * 24 * 60 * 60 * 1000;
+  const available = candidates.filter((book) => !used.has(bookKey(book)));
+  const inWindow = available.filter((book) => {
+    const publishedDate = parsePublishedDate(book.publishedDate);
+    return publishedDate !== null && now - publishedDate.getTime() <= maxAge;
+  });
+  const rest = available.filter((book) => !inWindow.includes(book));
+  const shelf = takeTop([...inWindow, ...rest]);
 
-  // If date filtering wipes out all results (e.g., due to missing specific month/day data),
-  // gracefully fallback with period-specific offset to prevent empty shelf and ensure variety
-  if (filtered.length === 0 && pool.length > 0) {
-    // Use different offsets for different periods to avoid showing the same books
-    const offsets = { week: 0, month: 3, year: 6 };
-    const offset = offsets[params.period] ?? 0;
-    const result = pool.slice(offset, offset + LIST_SIZE);
-    return result.length > 0 ? result : takeTop(pool);
+  for (const book of shelf) {
+    used.add(bookKey(book));
   }
 
-  return takeTop(filtered);
+  return shelf;
+}
+
+/**
+ * Week, month and year shelves for one language. Two Google queries are
+ * shared across all three shelves, and no book appears on more than one.
+ */
+async function fetchPopularShelves(language: BookLanguage, query: string) {
+  const [newestPool, relevancePool] = await Promise.all([
+    fetchPopularPool(language, query, "newest"),
+    fetchPopularPool(language, query),
+  ]);
+  const used = new Set<string>();
+
+  return {
+    week: buildShelf(newestPool, used, 7),
+    month: buildShelf(newestPool, used, 30),
+    year: buildShelf(relevancePool, used, 365),
+  };
+}
+
+async function fetchPopularYear(language: BookLanguage, query: string) {
+  const pool = await fetchPopularPool(language, query);
+  return buildShelf(pool, new Set(), 365);
 }
 
 export async function fetchBooks(): Promise<BooksData> {
   const [
     zhNewPublish,
-    zhBestSellerWeek,
-    zhBestSellerMonth,
-    zhBestSellerYear,
+    zhPopular,
     enNewPublish,
-    enBestSellerWeek,
-    enBestSellerMonth,
-    enBestSellerYear,
+    enPopular,
     frBestSellerYear,
     esBestSellerYear,
     deBestSellerYear,
     ruBestSellerYear,
   ] = await Promise.all([
     fetchNewPublishBooks("zh", "小说"),
-    fetchBestSellerByPeriod({
-      language: "zh",
-      query: "畅销 小说",
-      days: 7,
-      period: "week",
-    }),
-    fetchBestSellerByPeriod({
-      language: "zh",
-      query: "畅销 小说",
-      days: 30,
-      period: "month",
-    }),
-    fetchBestSellerByPeriod({
-      language: "zh",
-      query: "畅销 小说",
-      days: 365,
-      period: "year",
-    }),
+    fetchPopularShelves("zh", "畅销 小说"),
     fetchNewPublishBooks("en", "subject:fiction"),
-    fetchBestSellerByPeriod({
-      language: "en",
-      query: "bestseller fiction",
-      days: 7,
-      period: "week",
-    }),
-    fetchBestSellerByPeriod({
-      language: "en",
-      query: "bestseller fiction",
-      days: 30,
-      period: "month",
-    }),
-    fetchBestSellerByPeriod({
-      language: "en",
-      query: "bestseller fiction",
-      days: 365,
-      period: "year",
-    }),
-    fetchBestSellerByPeriod({
-      language: "fr",
-      query: "bestseller fiction",
-      days: 365,
-      period: "year",
-    }),
-    fetchBestSellerByPeriod({
-      language: "es",
-      query: "bestseller fiction",
-      days: 365,
-      period: "year",
-    }),
-    fetchBestSellerByPeriod({
-      language: "de",
-      query: "bestseller fiction",
-      days: 365,
-      period: "year",
-    }),
-    fetchBestSellerByPeriod({
-      language: "ru",
-      query: "bestseller fiction",
-      days: 365,
-      period: "year",
-    }),
+    fetchPopularShelves("en", "bestseller fiction"),
+    fetchPopularYear("fr", "bestseller fiction"),
+    fetchPopularYear("es", "bestseller fiction"),
+    fetchPopularYear("de", "bestseller fiction"),
+    fetchPopularYear("ru", "bestseller fiction"),
   ]);
 
   return {
-    zhNewPublish: takeTop(zhNewPublish),
-    zhBestSellerWeek: takeTop(zhBestSellerWeek),
-    zhBestSellerMonth: takeTop(zhBestSellerMonth),
-    zhBestSellerYear: takeTop(zhBestSellerYear),
-    enNewPublish: takeTop(enNewPublish),
-    enBestSellerWeek: takeTop(enBestSellerWeek),
-    enBestSellerMonth: takeTop(enBestSellerMonth),
-    enBestSellerYear: takeTop(enBestSellerYear),
-    frBestSellerYear: takeTop(frBestSellerYear),
-    esBestSellerYear: takeTop(esBestSellerYear),
-    deBestSellerYear: takeTop(deBestSellerYear),
-    ruBestSellerYear: takeTop(ruBestSellerYear),
+    zhNewPublish,
+    zhBestSellerWeek: zhPopular.week,
+    zhBestSellerMonth: zhPopular.month,
+    zhBestSellerYear: zhPopular.year,
+    enNewPublish,
+    enBestSellerWeek: enPopular.week,
+    enBestSellerMonth: enPopular.month,
+    enBestSellerYear: enPopular.year,
+    frBestSellerYear,
+    esBestSellerYear,
+    deBestSellerYear,
+    ruBestSellerYear,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function countBooks(data: BooksData) {
+  return Object.values(data).reduce(
+    (total, value) => total + (Array.isArray(value) ? value.length : 0),
+    0
+  );
 }
