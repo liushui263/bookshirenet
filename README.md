@@ -94,3 +94,9 @@ Authorization: Bearer <CRON_SECRET>
 - If Google Books is unavailable or quota-limited, popular lists fall back to Open Library; new-release lists may be empty. Builds never crash on source failures.
 - Books without a cover use the local `public/cover-placeholder.svg`.
 - If the API key is missing, the app logs once and serves empty shelves.
+
+## `bookshire/` (merged from liushui263/bookShire)
+
+The `bookshire/` folder holds the BookShire full-stack app that used to live in its own repo, with its git history: a FastAPI + PostgreSQL backend, a Next.js App Router frontend, an Expo mobile app and Docker / Cloud Build config. See `bookshire/README.md` to run it.
+
+It is separate from the site at the repo root: the root `tsconfig.json` excludes it and `.vercelignore` keeps it out of the Vercel deploy of bookshire.net.

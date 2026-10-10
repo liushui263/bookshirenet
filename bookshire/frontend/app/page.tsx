@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { BookCard } from "@/components/BookCard";
-import { getBooks } from "@/lib/api";
+import { getBooks, type Book } from "@/lib/api";
 
 export default async function HomePage() {
-  let books = [];
+  let books: Book[] = [];
   let errorMessage: string | null = null;
 
   try {
