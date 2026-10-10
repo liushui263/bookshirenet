@@ -15,7 +15,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen">
       <section className="mx-auto max-w-md px-6 py-16">
         <h1 className="text-3xl font-bold tracking-tight text-gray-950">Create your account</h1>
         <p className="mt-2 mb-8 text-gray-600">Keep track of your books and share them with other readers.</p>

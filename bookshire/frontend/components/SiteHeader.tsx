@@ -1,47 +1,52 @@
 import Link from "next/link";
+import { HeaderNav } from "@/components/HeaderNav";
 import { SignOutButton } from "@/components/SignOutButton";
 import { getCurrentUser } from "@/lib/session";
 
+// The original bookshire.net top bar (styles in app/discovery.css), shown on every page.
 export async function SiteHeader() {
   const user = await getCurrentUser();
 
   return (
-    <header className="border-b border-gray-200 bg-white">
-      <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4 text-sm">
-        <Link href="/" className="text-base font-bold text-gray-950">
-          BookShire
-        </Link>
-        <Link href="/catalog" className="font-semibold text-gray-600 hover:text-gray-950">
-          Catalog
-        </Link>
-        <Link href="/search" className="font-semibold text-gray-600 hover:text-gray-950">
-          Search
-        </Link>
-        <Link href="/shelf" className="font-semibold text-gray-600 hover:text-gray-950">
-          My Shelf
+    <div className="discovery site-header">
+      <header className="topbar">
+        <Link className="brand" href="/" aria-label="布客舍书坊 home">
+          <span className="brand-mark">布</span>
+          <div className="brand-copy">
+            <div className="line">
+              <strong>布客舍</strong>
+              <span>
+                <em className="special-char">书</em>
+                <em className="special-char">坊</em>
+              </span>
+            </div>
+            <small>Daily reading shelf</small>
+          </div>
+          <span className="brand-mark">書</span>
         </Link>
 
-        <div className="ml-auto flex items-center gap-4">
+        <HeaderNav />
+
+        <div className="topbar-account">
           {user ? (
             <>
-              <span className="text-gray-600">{user.display_name}</span>
-              <SignOutButton />
+              <Link className="toplink" href="/shelf">
+                {user.display_name}
+              </Link>
+              <SignOutButton className="toplink" />
             </>
           ) : (
             <>
-              <Link href="/login" className="font-semibold text-gray-600 hover:text-gray-950">
+              <Link className="toplink" href="/login">
                 Sign in
               </Link>
-              <Link
-                href="/register"
-                className="rounded-full bg-gray-950 px-4 py-2 font-semibold text-white hover:bg-gray-800"
-              >
+              <Link className="toplink toplink-primary" href="/register">
                 Join
               </Link>
             </>
           )}
         </div>
-      </nav>
-    </header>
+      </header>
+    </div>
   );
 }

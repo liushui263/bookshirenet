@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function SignOutButton() {
+export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +23,10 @@ export function SignOutButton() {
       type="button"
       onClick={handleSignOut}
       disabled={isLoading}
-      className="rounded-full border border-gray-300 px-4 py-2 font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+      className={
+        className ??
+        "rounded-full border border-gray-300 px-4 py-2 font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+      }
     >
       Sign out
     </button>

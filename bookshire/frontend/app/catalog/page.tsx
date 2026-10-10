@@ -14,7 +14,7 @@ export default async function CatalogPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen">
       <section className="mx-auto max-w-6xl px-6 py-10">
         <header className="flex flex-col gap-6 border-b border-gray-200 pb-10 md:flex-row md:items-center md:justify-between">
           <div>

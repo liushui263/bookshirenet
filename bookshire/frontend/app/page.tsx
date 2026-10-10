@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import DiscoveryHome, { type TabId } from "@/components/discovery/DiscoveryHome";
 import { getDiscoveryBooks } from "@/lib/discovery/cache";
 import { getCurrentUser } from "@/lib/session";
-import "./discovery.css";
 
 export const metadata: Metadata = {
-  title: "BookShire",
+  title: "布客舍书坊",
   description:
     "A daily reading shelf of new and popular fiction in Chinese, English, French, Spanish, German and Russian, plus your own library.",
 };

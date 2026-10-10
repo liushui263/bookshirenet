@@ -45,7 +45,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   if (errorMessage || !book) {
     return (
-      <main className="min-h-screen bg-gray-50">
+      <main className="min-h-screen">
         <section className="mx-auto max-w-4xl px-6 py-10">
           <Link
             href="/"
@@ -73,7 +73,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const signedIn = Boolean(await getCurrentUser());
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen">
       <section className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
           <Link
