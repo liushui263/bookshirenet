@@ -14,6 +14,36 @@ BookShire is a containerized book management platform. The current MVP includes:
 - Seed data for local development
 - Docker Compose full-stack dev environment
 
+## Accounts and sign-in
+
+People create an account with email and password (`/register`, `/login` on the website). The API issues a signed token and everything personal is scoped to the signed-in user:
+
+```text
+POST /api/v1/auth/register   {email, password, display_name} -> {access_token, user}
+POST /api/v1/auth/login      {email, password}               -> {access_token, user}
+GET  /api/v1/auth/me
+GET|POST /api/v1/me/books, POST /api/v1/me/books/by-book/{book_id}
+PATCH|DELETE /api/v1/me/books/{id}
+GET  /api/v1/me/reviews; writing, editing and deleting reviews also need sign-in
+```
+
+Send the token as `Authorization: Bearer <token>`. The website keeps it in an httpOnly cookie and calls the API through its own `/api/backend/...` proxy, so page scripts never see it.
+
+Local development signs in as the seeded demo user with `demo@bookshire.local` / `bookshire-demo` (set `DEMO_USER_PASSWORD` to change it; never seeded when `ENV=prod`).
+
+Backend settings:
+
+| Variable | Purpose |
+|---|---|
+| `AUTH_SECRET` | Signs login tokens. Required when `ENV=prod`; use a long random string. |
+| `AUTH_TOKEN_TTL_DAYS` | How long a sign-in lasts (default 30). |
+| `CORS_ORIGINS` | Extra allowed browser origins, comma-separated (e.g. `https://bookshire.net`). |
+| `ENABLE_LEGACY_USER_ROUTES` | `true` mounts the old `/users/{user_id}/books` routes, which trust the id in the URL. Local dev only, for the mobile app until it gets sign-in. |
+
+An existing database gets the new `users.password_hash` column by re-running `backend/db/init.sql` (it is idempotent): `docker compose exec -T db psql -U bookshire -d bookshire < backend/db/init.sql`.
+
+API tests (with the stack running): `cd backend && pip install -r requirements-dev.txt && python -m pytest tests`.
+
 ## Current MVP Features
 
 ```text

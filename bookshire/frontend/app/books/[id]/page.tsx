@@ -2,6 +2,7 @@ import { AddToShelfButton } from "@/components/AddToShelfButton";
 import Link from "next/link";
 import { getBook, getBookReviews } from "@/lib/api";
 import type { Book, Review } from "@/lib/api";
+import { getCurrentUser } from "@/lib/session";
 
 type BookDetailPageProps = {
   params: Promise<{
@@ -69,8 +70,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const tags = book.tags || book.categories || [];
   const coverUrl = book.cover_url || book.canonical_cover_url;
   const description = book.description || book.canonical_description;
-  const DEMO_USER_ID =
-  process.env.NEXT_PUBLIC_DEMO_USER_ID ||"86f7818b-788e-4d0b-9e81-9c8bc918ac44";
+  const signedIn = Boolean(await getCurrentUser());
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -187,7 +187,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               </dl>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <AddToShelfButton userId={DEMO_USER_ID} bookId={book.id} />
+                <AddToShelfButton bookId={book.id} signedIn={signedIn} />
 
                 <Link
                   href="/shelf"

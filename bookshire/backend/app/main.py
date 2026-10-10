@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
 from app.api.v1.books import router as books_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.user_books import router as user_books_router
 from app.api.v1.reviews import router as reviews_router
+from app.core.config import settings
 
 
 app = FastAPI(title="BookShire API")
@@ -19,16 +21,23 @@ app.add_middleware(
         "http://127.0.0.1:8081",
         "http://localhost:19006",
         "http://127.0.0.1:19006",
+        *settings.CORS_ORIGINS,
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(books_router, prefix="/api/v1")
 app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(user_books_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1")
+
+if settings.ENABLE_LEGACY_USER_ROUTES:
+    from app.api.v1.legacy_user_books import router as legacy_user_books_router
+
+    app.include_router(legacy_user_books_router, prefix="/api/v1")
 
 
 @app.get("/")

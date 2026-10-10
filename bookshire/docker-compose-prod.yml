@@ -22,6 +22,9 @@ services:
     environment:
       ENV: prod
       DATABASE_URL: postgresql+psycopg2://book:book@db:5432/bookdb
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to a long random string}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SEED_DATA: "false"
     depends_on:
       db:
         condition: service_healthy

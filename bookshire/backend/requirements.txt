@@ -5,3 +5,5 @@ psycopg2-binary
 pydantic
 python-dotenv
 alembic==1.13.1
+PyJWT>=2.8
+email-validator

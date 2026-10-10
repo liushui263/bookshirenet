@@ -39,6 +39,8 @@ services:
       ENV: dev
       DATABASE_URL: postgresql://bookshire:password@db:5432/bookshire
       SEED_DATA: "true"
+      # The mobile app has no sign-in yet and still uses /users/{id}/books.
+      ENABLE_LEGACY_USER_ROUTES: "true"
     ports:
       - "8000:8000"
     volumes:
@@ -51,7 +53,6 @@ services:
     environment:
       INTERNAL_API_BASE_URL: http://backend:8000
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
-      NEXT_PUBLIC_DEMO_USER_ID: 86f7818b-788e-4d0b-9e81-9c8bc918ac44
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

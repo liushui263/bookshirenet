@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ReviewCreate(BaseModel):
-    user_id: UUID
     edition_id: Optional[UUID] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     content: Optional[str] = None

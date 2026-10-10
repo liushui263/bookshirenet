@@ -49,26 +49,32 @@ def list_book_reviews(db: Session, book_id: UUID, skip: int = 0, limit: int = 50
     )
 
 
-def list_user_reviews(db: Session, user_id: UUID, skip: int = 0, limit: int = 50) -> List[Review]:
+def list_user_reviews(
+    db: Session,
+    user_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+    public_only: bool = True,
+) -> List[Review]:
     _ensure_user_exists(db, user_id)
     return review_repo.list_reviews_by_user(
         db,
         user_id=user_id,
         skip=skip,
         limit=limit,
+        public_only=public_only,
     )
 
 
-def create_book_review(db: Session, book_id: UUID, payload: ReviewCreate) -> Review:
+def create_book_review(db: Session, book_id: UUID, user_id: UUID, payload: ReviewCreate) -> Review:
     _ensure_book_exists(db, book_id)
-    _ensure_user_exists(db, payload.user_id)
 
     if payload.edition_id:
         _ensure_edition_matches_book(db, payload.edition_id, book_id)
 
     existing = review_repo.get_active_review_by_user_and_book(
         db,
-        user_id=payload.user_id,
+        user_id=user_id,
         book_id=book_id,
     )
     if existing:
@@ -78,7 +84,7 @@ def create_book_review(db: Session, book_id: UUID, payload: ReviewCreate) -> Rev
         )
 
     review = Review(
-        user_id=payload.user_id,
+        user_id=user_id,
         book_id=book_id,
         edition_id=payload.edition_id,
         rating=payload.rating,
@@ -88,10 +94,16 @@ def create_book_review(db: Session, book_id: UUID, payload: ReviewCreate) -> Rev
     return review_repo.create_review(db, review)
 
 
-def update_review(db: Session, review_id: UUID, payload: ReviewUpdate) -> Review:
+def _get_own_review(db: Session, review_id: UUID, user_id: UUID) -> Review:
     review = review_repo.get_review_by_id(db, review_id)
-    if not review:
+    # Someone else's review reads as missing, so ids can't be probed.
+    if not review or review.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    return review
+
+
+def update_review(db: Session, review_id: UUID, user_id: UUID, payload: ReviewUpdate) -> Review:
+    review = _get_own_review(db, review_id, user_id)
 
     values = payload.model_dump(exclude_unset=True)
     if "content" in values and values["content"] is not None:
@@ -108,9 +120,7 @@ def update_review(db: Session, review_id: UUID, payload: ReviewUpdate) -> Review
     return review_repo.update_review(db, review, values)
 
 
-def remove_review(db: Session, review_id: UUID) -> Review:
-    review = review_repo.get_review_by_id(db, review_id)
-    if not review:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+def remove_review(db: Session, review_id: UUID, user_id: UUID) -> Review:
+    review = _get_own_review(db, review_id, user_id)
 
     return review_repo.soft_delete_review(db, review)

@@ -1,18 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ShelfClient } from "@/components/ShelfClient";
-import { getUserBooks } from "@/lib/api";
+import { getMyBooks } from "@/lib/api";
 import type { UserBook } from "@/lib/api";
-
-const DEMO_USER_ID =
-  process.env.NEXT_PUBLIC_DEMO_USER_ID ||
-  "86f7818b-788e-4d0b-9e81-9c8bc918ac44";
+import { getCurrentUser, getSessionToken } from "@/lib/session";
 
 export default async function ShelfPage() {
+  const token = await getSessionToken();
+  if (!token || !(await getCurrentUser())) {
+    redirect("/login?next=/shelf");
+  }
+
   let items: UserBook[] = [];
   let errorMessage: string | null = null;
 
   try {
-    items = await getUserBooks(DEMO_USER_ID);
+    items = await getMyBooks(token);
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Failed to load shelf";
@@ -59,7 +62,7 @@ export default async function ShelfPage() {
             </p>
           </div>
         ) : (
-          <ShelfClient initialItems={items} userId={DEMO_USER_ID} />
+          <ShelfClient initialItems={items} />
         )}
       </section>
     </main>
