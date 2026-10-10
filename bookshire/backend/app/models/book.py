@@ -56,6 +56,7 @@ class Edition(Base):
     isbn_13 = Column(String(13))
     publisher = Column(Text)
     publication_year = Column(Integer)
+    page_count = Column(Integer)
     format = Column(book_format_enum, nullable=False, server_default=text("'unknown'"))
     cover_url = Column(Text)
     metadata_source = Column(metadata_source_enum, nullable=False, server_default=text("'user'"))

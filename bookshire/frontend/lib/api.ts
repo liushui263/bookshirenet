@@ -103,12 +103,20 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
+    let body: { detail?: unknown } | null = null;
 
     try {
-      const body = await res.json();
-      detail = body.detail ? JSON.stringify(body.detail) : JSON.stringify(body);
+      body = await res.json();
     } catch {
       // Keep default HTTP detail.
+    }
+
+    // A plain-text reason from the API is meant for people; show it as is.
+    if (typeof body?.detail === "string") {
+      throw new Error(body.detail);
+    }
+    if (body) {
+      detail = body.detail ? JSON.stringify(body.detail) : JSON.stringify(body);
     }
 
     throw new Error(`API request failed: ${detail}`);
@@ -177,4 +185,56 @@ export async function addBookToMyShelf(bookId: string): Promise<UserBook> {
       method: "POST",
     }
   );
+}
+
+export type UserBookPatch = Partial<
+  Pick<
+    UserBook,
+    | "status"
+    | "condition"
+    | "location_text"
+    | "exchangeable"
+    | "visibility"
+    | "personal_tags"
+    | "personal_notes_summary"
+    | "acquired_at"
+    | "started_at"
+    | "finished_at"
+  >
+>;
+
+export type ShelfImportResult = {
+  added: number;
+  updated: number;
+  failed: number;
+  errors: { row: number; title?: string | null; error: string }[];
+};
+
+export async function listMyBooksFromBrowser(): Promise<UserBook[]> {
+  return fetchJson<UserBook[]>(`${BROWSER_PROXY}/me/books`);
+}
+
+export async function updateMyBook(userBookId: string, patch: UserBookPatch): Promise<UserBook> {
+  return fetchJson<UserBook>(`${BROWSER_PROXY}/me/books/${encodeURIComponent(userBookId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function addMyBookByIsbn(isbn: string): Promise<UserBook> {
+  return fetchJson<UserBook>(`${BROWSER_PROXY}/me/books/isbn`, {
+    method: "POST",
+    body: JSON.stringify({ isbn }),
+  });
+}
+
+export async function importShelfFile(format: "csv" | "json", content: string): Promise<ShelfImportResult> {
+  return fetchJson<ShelfImportResult>(`${BROWSER_PROXY}/me/books/import-file`, {
+    method: "POST",
+    body: JSON.stringify({ format, content }),
+  });
+}
+
+export function shelfExportUrl(format: "csv" | "json") {
+  return `${BROWSER_PROXY}/me/books/export?format=${format}`;
 }

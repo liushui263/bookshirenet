@@ -35,10 +35,12 @@ async function proxy(request: Request, { params }: Context) {
     return NextResponse.json({ detail: "The BookShire API is unreachable" }, { status: 502 });
   }
 
-  return new NextResponse(res.body, {
-    status: res.status,
-    headers: { "Content-Type": res.headers.get("content-type") || "application/json" },
-  });
+  const headers = new Headers({ "Content-Type": res.headers.get("content-type") || "application/json" });
+  const disposition = res.headers.get("content-disposition");
+  if (disposition) {
+    headers.set("Content-Disposition", disposition);
+  }
+  return new NextResponse(res.body, { status: res.status, headers });
 }
 
 export { proxy as GET, proxy as POST, proxy as PATCH, proxy as PUT, proxy as DELETE };
