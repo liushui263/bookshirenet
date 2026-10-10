@@ -1,0 +1,61 @@
+steps:
+  # 1. Build the backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:$COMMIT_SHA', './backend']
+
+  # 2. Build the frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:$COMMIT_SHA'
+      # Next.js usually needs env vars at build time for SSG/SSR
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_BASE_URL=$_PUBLIC_BACKEND_URL' 
+      - './frontend'
+
+  # 3. Push both images to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:$COMMIT_SHA']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:$COMMIT_SHA']
+
+  # 4. Deploy backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bookshire-backend'
+      - '--image'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/backend:$COMMIT_SHA'
+      - '--region'
+      - '$_REGION'
+      - '--allow-unauthenticated'
+      # Use Cloud SQL integration to securely connect
+      - '--add-cloudsql-instances'
+      - '$_CLOUD_SQL_INSTANCE_CONNECTION_NAME'
+      - '--set-env-vars'
+      - 'DATABASE_URL=$_DATABASE_URL'
+
+  # 5. Deploy frontend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bookshire-frontend'
+      - '--image'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/frontend:$COMMIT_SHA'
+      - '--region'
+      - '$_REGION'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'INTERNAL_API_BASE_URL=$_PUBLIC_BACKEND_URL,NEXT_PUBLIC_API_BASE_URL=$_PUBLIC_BACKEND_URL'
+
+substitutions:
+  _REGION: 'us-central1'
+  _REPO_NAME: 'bookshire-repo'
+  _CLOUD_SQL_INSTANCE_CONNECTION_NAME: 'your-project:us-central1:your-sql-instance'
+  _DATABASE_URL: 'postgresql://bookshire:password@/bookshire?host=/cloudsql/your-project:us-central1:your-sql-instance'
+  _PUBLIC_BACKEND_URL: 'https://bookshire-backend-xxxxxx.a.run.app' # 首次部署后替换为实际URL

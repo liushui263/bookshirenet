@@ -1,0 +1,36 @@
+name: bookshire
+
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U book -d bookdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_USER: book
+      POSTGRES_PASSWORD: book
+      POSTGRES_DB: bookdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      ENV: prod
+      DATABASE_URL: postgresql+psycopg2://book:book@db:5432/bookdb
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./worker
+
+volumes:
+  postgres_data:
+    name: bookshire_postgres_data
