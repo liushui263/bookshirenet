@@ -1,33 +1,26 @@
 import Head from "next/head";
 import Image from "next/image";
-import { startTransition, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import { useRouter } from "next/router";
 import Section from "../components/Section";
-import { fetchBooks, type Book, type BooksData } from "../lib/fetchBooks";
+import {
+  countBooks,
+  fetchBooks,
+  type Book,
+  type BooksData,
+} from "../lib/fetchBooks";
 
-type LoadState = "idle" | "loading" | "success" | "error";
+type TabId = "zh" | "en" | "intl";
 
-function getTotalBooks(data: BooksData) {
-  return (
-    data.zhNewPublish.length +
-    data.zhBestSellerWeek.length +
-    data.zhBestSellerMonth.length +
-    data.zhBestSellerYear.length +
-    data.enNewPublish.length +
-    data.enBestSellerWeek.length +
-    data.enBestSellerMonth.length +
-    data.enBestSellerYear.length +
-    data.frBestSellerYear.length +
-    data.esBestSellerYear.length +
-    data.deBestSellerYear.length +
-    data.ruBestSellerYear.length
-  );
-}
+const LANGUAGE_COUNT = 6;
+const ONE_DAY_SECONDS = 60 * 60 * 24;
 
-function hasAnyBooks(data: BooksData) {
-  return getTotalBooks(data) > 0;
-}
+const TAB_FOR_SECTION: Record<string, TabId> = {
+  "zh-new-publish": "zh",
+  "en-new-publish": "en",
+  "fr-best-year": "intl",
+};
 
 function toSerializableBook(book: Book): Book {
   return {
@@ -65,57 +58,34 @@ export default function Home({
   data,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
   const router = useRouter();
-  const [booksData, setBooksData] = useState(data);
-  const [activeTab, setActiveTab] = useState<"zh" | "en" | "intl">("zh");
-  const [loadState, setLoadState] = useState<LoadState>(
-    hasAnyBooks(data) ? "idle" : "loading"
-  );
+  const booksData = data;
+  const [activeTab, setActiveTab] = useState<TabId>("zh");
+  const [pendingScroll, setPendingScroll] = useState<string | null>(null);
+
+  // Sections only render for the active tab, so in-page links switch the tab
+  // first and scroll once the target section exists.
+  function goToSection(sectionId: string) {
+    setActiveTab(TAB_FOR_SECTION[sectionId] ?? "zh");
+    setPendingScroll(sectionId);
+  }
 
   useEffect(() => {
-    const controller = new AbortController();
+    const hashTarget = window.location.hash.slice(1);
+    if (TAB_FOR_SECTION[hashTarget]) {
+      goToSection(hashTarget);
+    }
+  }, []);
 
-    async function loadBooks() {
-      setLoadState("loading");
-
-      try {
-        const response = await fetch("/api/books", {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load books: ${response.status}`);
-        }
-
-        const nextData = (await response.json()) as BooksData;
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        if (hasAnyBooks(nextData)) {
-          startTransition(() => {
-            setBooksData(nextData);
-          });
-          setLoadState("success");
-          return;
-        }
-
-        setLoadState(hasAnyBooks(data) ? "success" : "error");
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        console.error("Failed to load live book lists", error);
-        setLoadState(hasAnyBooks(data) ? "success" : "error");
-      }
+  useEffect(() => {
+    if (!pendingScroll) {
+      return;
     }
 
-    loadBooks();
-
-    return () => controller.abort();
-  }, [data]);
+    document
+      .getElementById(pendingScroll)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setPendingScroll(null);
+  }, [pendingScroll, activeTab]);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -125,10 +95,7 @@ export default function Home({
     const queryTab = router.query.tab;
     if (queryTab === "zh" || queryTab === "en" || queryTab === "intl") {
       setActiveTab(queryTab);
-      return;
     }
-
-    setActiveTab("zh");
   }, [router.isReady, router.query.tab]);
 
   useEffect(() => {
@@ -159,7 +126,8 @@ export default function Home({
   }).format(new Date(booksData.updatedAt));
   const listUpdatedAt = `Updated ${lastRefreshed} CT`;
 
-  const totalBooks = getTotalBooks(booksData);
+  const totalBooks = countBooks(booksData);
+  const hasBooks = totalBooks > 0;
 
   const shelfHighlights = [
     booksData.zhNewPublish[0],
@@ -169,8 +137,8 @@ export default function Home({
 
   const digest = [
     {
-      label: "Bestseller pulse",
-      value: booksData.enBestSellerWeek[0]?.title ?? "Fresh rankings loading",
+      label: "Popular this week",
+      value: booksData.enBestSellerWeek[0]?.title ?? "Popular picks arriving soon",
     },
     {
       label: "Newest in English",
@@ -199,22 +167,22 @@ export default function Home({
     {
       id: "zh-best-week",
       eyebrow: "中文",
-      title: "Chinese: Best Seller Last 1 Week",
-      subtitle: "Recent Chinese best sellers published within the last 7 days.",
+      title: "Chinese: Popular This Week",
+      subtitle: "Popular Chinese fiction, preferring titles published in the last 7 days.",
       books: booksData.zhBestSellerWeek,
     },
     {
       id: "zh-best-month",
       eyebrow: "中文",
-      title: "Chinese: Best Seller Last 1 Month",
-      subtitle: "Chinese best sellers within a 30-day publish window.",
+      title: "Chinese: Popular This Month",
+      subtitle: "Popular Chinese fiction from the last 30 days, not repeated from the week list.",
       books: booksData.zhBestSellerMonth,
     },
     {
       id: "zh-best-year",
       eyebrow: "中文",
-      title: "Chinese: Best Seller Last 1 Year",
-      subtitle: "Chinese best sellers within a 365-day publish window.",
+      title: "Chinese: Popular This Year",
+      subtitle: "Popular Chinese fiction from the last year, not repeated from shorter lists.",
       books: booksData.zhBestSellerYear,
     },
     {
@@ -227,50 +195,50 @@ export default function Home({
     {
       id: "en-best-week",
       eyebrow: "English",
-      title: "English: Best Seller Last 1 Week",
-      subtitle: "Recent English best sellers published within 7 days.",
+      title: "English: Popular This Week",
+      subtitle: "Popular English fiction, preferring titles published in the last 7 days.",
       books: booksData.enBestSellerWeek,
     },
     {
       id: "en-best-month",
       eyebrow: "English",
-      title: "English: Best Seller Last 1 Month",
-      subtitle: "English best sellers within a 30-day publish window.",
+      title: "English: Popular This Month",
+      subtitle: "Popular English fiction from the last 30 days, not repeated from the week list.",
       books: booksData.enBestSellerMonth,
     },
     {
       id: "en-best-year",
       eyebrow: "English",
-      title: "English: Best Seller Last 1 Year",
-      subtitle: "English best sellers within a 365-day publish window.",
+      title: "English: Popular This Year",
+      subtitle: "Popular English fiction from the last year, not repeated from shorter lists.",
       books: booksData.enBestSellerYear,
     },
     {
       id: "fr-best-year",
       eyebrow: "French",
-      title: "French: Best Seller Last 1 Year",
-      subtitle: "French best sellers within a 365-day publish window.",
+      title: "French: Popular This Year",
+      subtitle: "Popular French fiction, preferring titles from the last year.",
       books: booksData.frBestSellerYear,
     },
     {
       id: "es-best-year",
       eyebrow: "Spanish",
-      title: "Spanish: Best Seller Last 1 Year",
-      subtitle: "Spanish best sellers within a 365-day publish window.",
+      title: "Spanish: Popular This Year",
+      subtitle: "Popular Spanish fiction, preferring titles from the last year.",
       books: booksData.esBestSellerYear,
     },
     {
       id: "de-best-year",
       eyebrow: "German",
-      title: "German: Best Seller Last 1 Year",
-      subtitle: "German best sellers within a 365-day publish window.",
+      title: "German: Popular This Year",
+      subtitle: "Popular German fiction, preferring titles from the last year.",
       books: booksData.deBestSellerYear,
     },
     {
       id: "ru-best-year",
       eyebrow: "Russian",
-      title: "Russian: Best Seller Last 1 Year",
-      subtitle: "Russian best sellers within a 365-day publish window.",
+      title: "Russian: Popular This Year",
+      subtitle: "Popular Russian fiction, preferring titles from the last year.",
       books: booksData.ruBestSellerYear,
     },
   ];
@@ -281,24 +249,17 @@ export default function Home({
     intl: catalogSections.slice(8, 12),
   } as const;
 
-  const statusLabel =
-    loadState === "loading"
-      ? "Loading live shelf..."
-      : loadState === "error"
-        ? "Live fetch failed, showing current shelf"
-        : "Live shelf ready";
+  const statusLabel = hasBooks
+    ? "Shelf ready"
+    : "Shelf is empty right now";
 
-  const statusHint =
-    loadState === "error"
-      ? "Data source is temporarily unavailable. Cached books are shown."
-      : loadState === "loading"
-        ? "Trying to refresh from Google Books."
-        : "Fresh or cached content is available for browsing.";
+  const statusHint = hasBooks
+    ? "Lists refresh once a day from Google Books."
+    : "The book sources were unavailable at the last refresh. The shelf fills again at the next daily refresh.";
 
-  const sectionEmptyMessage =
-    loadState === "error"
-      ? "No books returned right now. This can happen during DNS instability, API quota limits, or temporary source outages."
-      : "No books found for this list right now. Try another tab or refresh later.";
+  const sectionEmptyMessage = hasBooks
+    ? "No books found for this list right now. Try another tab or check back tomorrow."
+    : "No books returned right now. This can happen during API quota limits or temporary source outages.";
 
   return (
     <>
@@ -306,7 +267,7 @@ export default function Home({
         <title>BookShire</title>
         <meta
           name="description"
-          content="A daily reading shelf for English bestsellers, new releases, and Chinese fiction picks."
+          content="A daily reading shelf of new and popular fiction in Chinese, English, French, Spanish, German and Russian."
         />
       </Head>
 
@@ -331,9 +292,22 @@ export default function Home({
             </a>
 
           <nav className="topnav" aria-label="Primary">
-            <a href="#zh-new-publish">中文榜单</a>
-            <a href="#en-new-publish">English Lists</a>
-            <a href="#fr-best-year">EU Language Lists</a>
+            {[
+              ["zh-new-publish", "中文榜单"],
+              ["en-new-publish", "English Lists"],
+              ["fr-best-year", "EU Language Lists"],
+            ].map(([sectionId, label]) => (
+              <a
+                key={sectionId}
+                href={`#${sectionId}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  goToSection(sectionId);
+                }}
+              >
+                {label}
+              </a>
+            ))}
           </nav>
 
           <a className="toplink" href="/api/books">
@@ -347,13 +321,20 @@ export default function Home({
               <p className="eyebrow">Editorially framed, automatically refreshed</p>
               <h1>Book discovery with a warmer shelf and a quieter magazine feel.</h1>
               <p className="hero-text">
-                BookShire curates English bestsellers, fresh English fiction, and
-                Chinese new books into a single reading wall inspired by Goodreads
-                and 豆瓣.
+                BookShire gathers new and popular fiction in Chinese, English,
+                French, Spanish, German and Russian into a single reading wall
+                inspired by Goodreads and 豆瓣.
               </p>
 
               <div className="hero-actions">
-                <a className="button button-primary" href="#en-new-publish">
+                <a
+                  className="button button-primary"
+                  href="#en-new-publish"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToSection("en-new-publish");
+                  }}
+                >
                   Browse New Releases
                 </a>
                 <a className="button button-secondary" href="/api/books">
@@ -362,7 +343,7 @@ export default function Home({
               </div>
 
               <div
-                className={`load-status load-status-${loadState}`}
+                className={`load-status load-status-${hasBooks ? "success" : "error"}`}
                 role="status"
                 aria-live="polite"
               >
@@ -381,7 +362,7 @@ export default function Home({
                   <span className="stat-label">Automatic refresh cadence</span>
                 </article>
                 <article className="stat-card">
-                  <span className="stat-value">2</span>
+                  <span className="stat-value">{LANGUAGE_COUNT}</span>
                   <span className="stat-label">Reading languages tracked</span>
                 </article>
               </div>
@@ -401,6 +382,7 @@ export default function Home({
                           alt={book.title}
                           width={62}
                           height={93}
+                          unoptimized={book.cover.endsWith(".svg")}
                           sizes="62px"
                         />
                         <div>
@@ -425,7 +407,7 @@ export default function Home({
                 </div>
                 <div className="timeline-item">
                   <strong>Source mix</strong>
-                  <span>English bestsellers + English and Chinese new books</span>
+                  <span>Google Books, with Open Library as a fallback</span>
                 </div>
                 <div className="timeline-item">
                   <strong>Publishing flow</strong>
@@ -478,10 +460,9 @@ export default function Home({
                   title={section.title}
                   subtitle={section.subtitle}
                   books={section.books}
-                  isRefreshing={loadState === "loading"}
                   sourceLabel={
-                    activeTab === "intl" || section.id.includes("best")
-                      ? "Source: OpenLibrary popularity + Google Books fallback"
+                    section.id.includes("best")
+                      ? "Source: Google Books search (Open Library fallback)"
                       : "Source: Google Books newest"
                   }
                   updatedAtLabel={listUpdatedAt}
@@ -522,9 +503,9 @@ export default function Home({
               <section className="sidebar-card">
                 <p className="panel-label">Collection Notes</p>
                 <ul className="sidebar-list">
-                  <li>Cards now surface language, publication date, and source links.</li>
-                  <li>The homepage is split into a hero, digest band, and shelf sections.</li>
-                  <li>Global styling now loads through the Pages Router app shell.</li>
+                  <li>New lists show the most recently published fiction.</li>
+                  <li>Popular lists come from Google Books search results, not sales charts.</li>
+                  <li>Each book appears on only one of a language&apos;s popular shelves.</li>
                 </ul>
               </section>
             </aside>
@@ -537,12 +518,26 @@ export default function Home({
 
 export const getStaticProps: GetStaticProps<{ data: BooksData }> = async () => {
   const data = await fetchBooks();
-  const serializableData = toSerializableBooksData(data);
+
+  if (countBooks(data) === 0) {
+    // During a background regeneration, throwing keeps the last good page
+    // instead of replacing it with empty shelves.
+    if (process.env.NEXT_PHASE !== "phase-production-build") {
+      throw new Error("Book sources returned no books; keeping the previous page");
+    }
+
+    // At build time there is no previous page, so ship the empty shelf and
+    // retry soon.
+    return {
+      props: { data: toSerializableBooksData(data) },
+      revalidate: 60 * 15,
+    };
+  }
 
   return {
     props: {
-      data: serializableData,
+      data: toSerializableBooksData(data),
     },
-    revalidate: 60 * 60 * 24,
+    revalidate: ONE_DAY_SECONDS,
   };
 };

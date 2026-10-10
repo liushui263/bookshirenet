@@ -1,10 +1,12 @@
 # BookShire
 
-BookShire is a Next.js (Pages Router) app that curates three daily book shelves:
+BookShire is a Next.js (Pages Router) app that builds 12 daily book shelves of 10 books each, in three tabs:
 
-- English bestsellers
-- Latest English fiction
-- Latest Chinese books
+- 中文: new releases, plus popular this week / month / year
+- English: new releases, plus popular this week / month / year
+- French, Spanish, German, Russian: popular this year
+
+"Popular" lists come from Google Books search results (with Open Library as a fallback), not from sales charts. Within a language, a book appears on only one of the week / month / year shelves.
 
 The homepage is statically generated and refreshed with ISR. A protected revalidation endpoint is available for scheduled refreshes.
 
@@ -46,7 +48,7 @@ npm run start
 
 ## Environment Variables
 
-- `GOOGLE_BOOKS_API_KEY`: server-only key used by `lib/fetchBooks.ts`.
+- `GOOGLE_BOOKS_API_KEY`: server-only key used by `lib/fetchBooks.ts`. Each full refresh makes about 10 Google Books requests.
 - `CRON_SECRET`: bearer token checked by `pages/api/revalidate.ts`.
 
 Do not use `NEXT_PUBLIC_` for the Google Books key.
@@ -56,8 +58,8 @@ Do not use `NEXT_PUBLIC_` for the Google Books key.
 1. `pages/index.tsx` runs `getStaticProps`.
 2. `getStaticProps` calls `fetchBooks()` in `lib/fetchBooks.ts`.
 3. `fetchBooks()` requests Google Books with timeout/retry/fallback logic.
-4. Result is serialized and returned as page props.
-5. Client-side effect requests `/api/books` for a live refresh after load.
+4. Result is serialized and returned as page props. The browser does not call any book API, so page views cost no quota.
+5. If a background regeneration returns no books at all, `getStaticProps` throws so Next.js keeps serving the previous page.
 
 ## Refresh Strategy
 
@@ -80,7 +82,7 @@ Authorization: Bearer <CRON_SECRET>
 
 - `GET /api/books`
   - Returns `BooksData` from live Google Books fetches.
-  - Responds with `Cache-Control: no-store, max-age=0`.
+  - Cached at the CDN for an hour (`s-maxage=3600, stale-while-revalidate=86400`) to protect the API quota.
 
 - `GET /api/revalidate`
   - Requires `Authorization: Bearer <CRON_SECRET>`.
@@ -89,5 +91,6 @@ Authorization: Bearer <CRON_SECRET>
 ## Operational Notes
 
 - Temporary DNS/API failures are handled with bounded retries and timeout.
-- If Google Books is unavailable or quota-limited, empty lists are returned instead of crashing builds.
+- If Google Books is unavailable or quota-limited, popular lists fall back to Open Library; new-release lists may be empty. Builds never crash on source failures.
+- Books without a cover use the local `public/cover-placeholder.svg`.
 - If the API key is missing, the app logs once and serves empty shelves.

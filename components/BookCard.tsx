@@ -24,9 +24,11 @@ export default function BookCard({ book, maxTitleLength = 80 }: BookCardProps) {
   };
   const languageLabel = languageLabelMap[book.language];
   const publishedLabel = book.publishedDate ?? "Date pending";
-  const publishedAt = book.publishedDate
-    ? new Date(book.publishedDate).toISOString().slice(0, 10)
-    : undefined;
+  const parsedDate = book.publishedDate ? new Date(book.publishedDate) : null;
+  const publishedAt =
+    parsedDate && !Number.isNaN(parsedDate.getTime())
+      ? parsedDate.toISOString().slice(0, 10)
+      : undefined;
 
   return (
     <article className="card">
@@ -37,6 +39,7 @@ export default function BookCard({ book, maxTitleLength = 80 }: BookCardProps) {
           alt={book.title || "Book cover"}
           width={300}
           height={450}
+          unoptimized={book.cover.endsWith(".svg")}
           sizes="(max-width: 420px) 100vw, (max-width: 820px) 50vw, (max-width: 1280px) 20vw, 240px"
         />
         <span className="card-chip">{languageLabel}</span>
