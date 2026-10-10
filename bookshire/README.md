@@ -53,6 +53,7 @@ API tests (with the stack running): `cd backend && pip install -r requirements-d
    - `AUTH_SECRET`: a long random string, e.g. `python -c "import secrets; print(secrets.token_urlsafe(48))"`
    - `ENV`: `prod`
    - `CORS_ORIGINS`: `https://bookshire.net,https://www.bookshire.net`
+   - `GOOGLE_BOOKS_API_KEY` (optional): used when adding books by ISBN; without it Google Books allows fewer lookups and Open Library is the fallback
 4. Check `https://<api-project>.vercel.app/health` returns `{"status":"ok"}`.
 
 On Vercel the API uses no connection pool of its own (`NullPool`) and relies on Supabase's pooler; set `DB_NULL_POOL=true` to do the same elsewhere.
