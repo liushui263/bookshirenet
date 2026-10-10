@@ -44,6 +44,19 @@ An existing database gets the new `users.password_hash` column by re-running `ba
 
 API tests (with the stack running): `cd backend && pip install -r requirements-dev.txt && python -m pytest tests`.
 
+## Deploying: Supabase database + Vercel API
+
+1. **Database.** In a Supabase project, open the SQL Editor, paste all of `backend/db/init.sql` and run it. It is idempotent, so running it again later upgrades the schema. It enables the extensions it needs (PostGIS, citext, pg_trgm, unaccent, pgcrypto) and locks BookShire's tables away from Supabase's public REST API (row level security on, `anon`/`authenticated` access revoked). When adding a table to `init.sql`, add it to the lock-down list at the end too.
+2. **Connection string.** Project Settings → Database → Connect → *Transaction pooler* URI (port 6543). Keep it out of chat and git; it goes straight into Vercel.
+3. **API on Vercel.** New Vercel project from this repo with *Root Directory* `bookshire/backend` (`vercel.json` selects the FastAPI preset; `index.py` is the entry point). Environment variables:
+   - `DATABASE_URL`: the pooler URI from step 2
+   - `AUTH_SECRET`: a long random string, e.g. `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+   - `ENV`: `prod`
+   - `CORS_ORIGINS`: `https://bookshire.net,https://www.bookshire.net`
+4. Check `https://<api-project>.vercel.app/health` returns `{"status":"ok"}`.
+
+On Vercel the API uses no connection pool of its own (`NullPool`) and relies on Supabase's pooler; set `DB_NULL_POOL=true` to do the same elsewhere.
+
 ## Current MVP Features
 
 ```text

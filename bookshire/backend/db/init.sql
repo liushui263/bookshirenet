@@ -579,4 +579,36 @@ COMMENT ON TABLE reviews IS 'User reviews of books; distinct from reading notes.
 COMMENT ON TABLE exchange_requests IS 'Book exchange workflow between owner and requester.';
 COMMENT ON TABLE ingestion_jobs IS 'Book ingestion workflow for ISBN scan, image upload, OCR, vision, manual entry, or import.';
 
+-- ============================================================
+-- 14. Hosted Postgres lock-down (Supabase)
+-- ============================================================
+-- Supabase publishes the public schema through its REST API to anyone holding
+-- the project's anon key. BookShire only talks to the database through its own
+-- API, so turn on row level security (with no policies) and revoke the API
+-- roles' access to BookShire's objects. The API connects as the table owner,
+-- which bypasses RLS, so this changes nothing for it or for local Postgres.
+DO $$
+DECLARE
+    t TEXT;
+    bookshire_tables TEXT[] := ARRAY[
+        'users', 'friendships', 'contributors', 'books', 'book_contributors',
+        'book_descriptions', 'editions', 'images', 'book_images', 'edition_images',
+        'user_books', 'notes', 'reviews', 'exchange_requests', 'exchange_reviews',
+        'ingestion_jobs', 'ingestion_candidates', 'isbn_cache'
+    ];
+    api_role TEXT;
+BEGIN
+    FOREACH t IN ARRAY bookshire_tables LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    END LOOP;
+
+    FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+            FOREACH t IN ARRAY bookshire_tables || ARRAY['public_exchangeable_books'] LOOP
+                EXECUTE format('REVOKE ALL ON %I FROM %I', t, api_role);
+            END LOOP;
+        END IF;
+    END LOOP;
+END $$;
+
 COMMIT;
