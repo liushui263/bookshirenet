@@ -1,8 +1,10 @@
-tests/
-alembic/
-db/
-backups/
-Dockerfile*
-entrypoint.sh
-wait_for_db.py
-**/__pycache__
+# Leading slashes anchor each pattern to this folder; without them "db/" would
+# also drop app/db/ and break the deployed API.
+/tests/
+/alembic/
+/db/
+/backups/
+/Dockerfile*
+/entrypoint.sh
+/wait_for_db.py
+__pycache__/
