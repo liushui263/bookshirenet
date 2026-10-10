@@ -1,0 +1,8 @@
+tests/
+alembic/
+db/
+backups/
+Dockerfile*
+entrypoint.sh
+wait_for_db.py
+**/__pycache__
