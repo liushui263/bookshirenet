@@ -3,10 +3,15 @@ import os
 
 from sqlalchemy import create_engine, text
 
+from app.auth.passwords import hash_password
+from app.core.config import _normalize_database_url
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://bookshire:password@db:5432/bookshire",
+
+DATABASE_URL = _normalize_database_url(
+    os.getenv(
+        "DATABASE_URL",
+        "postgresql://bookshire:password@db:5432/bookshire",
+    )
 )
 
 
@@ -287,6 +292,18 @@ def seed_books():
 
     with engine.begin() as conn:
         conn.execute(insert_demo_user_sql)
+
+        # Lets local developers sign in as the demo user. Never done in production.
+        if os.getenv("ENV", "dev") != "prod":
+            conn.execute(
+                text(
+                    """
+                    UPDATE users SET password_hash = :password_hash
+                    WHERE id = '86f7818b-788e-4d0b-9e81-9c8bc918ac44' AND password_hash IS NULL
+                    """
+                ),
+                {"password_hash": hash_password(os.getenv("DEMO_USER_PASSWORD", "bookshire-demo"))},
+            )
 
         for book in BOOKS:
             external_ids = {

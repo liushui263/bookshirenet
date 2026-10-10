@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { addBookToShelf } from "@/lib/api";
+import { addBookToMyShelf } from "@/lib/api";
 
 type AddToShelfButtonProps = {
-  userId: string;
   bookId: string;
+  signedIn: boolean;
 };
 
-export function AddToShelfButton({ userId, bookId }: AddToShelfButtonProps) {
+export function AddToShelfButton({ bookId, signedIn }: AddToShelfButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function AddToShelfButton({ userId, bookId }: AddToShelfButtonProps) {
     setMessage(null);
 
     try {
-      await addBookToShelf(userId, bookId);
+      await addBookToMyShelf(bookId);
       setMessage("Added to your shelf.");
       router.refresh();
     } catch (error) {
@@ -30,6 +30,17 @@ export function AddToShelfButton({ userId, bookId }: AddToShelfButtonProps) {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (!signedIn) {
+    return (
+      <Link
+        href={`/login?next=${encodeURIComponent(`/books/${bookId}`)}`}
+        className="inline-block rounded-full bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
+      >
+        Sign in to add to your shelf
+      </Link>
+    );
   }
 
   return (

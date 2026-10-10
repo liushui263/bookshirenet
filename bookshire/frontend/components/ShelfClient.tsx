@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ReadingStatus, UserBook } from "@/lib/api";
-import { removeUserBook, updateUserBookStatus } from "@/lib/api";
+import { removeMyBook, updateMyBookStatus } from "@/lib/api";
 
 type ShelfStatus =
   | "unread"
@@ -46,7 +46,6 @@ function toApiStatus(status: ShelfStatus): ReadingStatus {
 
 type ShelfClientProps = {
   initialItems: UserBook[];
-  userId: string;
 };
 
 function formatDate(value?: string | null) {
@@ -66,7 +65,7 @@ function formatDate(value?: string | null) {
   }).format(date);
 }
 
-export function ShelfClient({ initialItems, userId }: ShelfClientProps) {
+export function ShelfClient({ initialItems }: ShelfClientProps) {
   const [items, setItems] = useState<UserBook[]>(initialItems);
   const [message, setMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -98,7 +97,7 @@ export function ShelfClient({ initialItems, userId }: ShelfClientProps) {
 
     try {
       const apiStatus = toApiStatus(status);
-      const updated = await updateUserBookStatus(userId, userBookId, apiStatus);
+      const updated = await updateMyBookStatus(userBookId, apiStatus);
 
       setItems((current) =>
         current.map((entry) =>
@@ -132,7 +131,7 @@ export function ShelfClient({ initialItems, userId }: ShelfClientProps) {
     setMessage(null);
 
     try {
-      await removeUserBook(userId, userBookId);
+      await removeMyBook(userBookId);
 
       setItems((current) =>
         current.filter((entry) => entry.id !== userBookId)

@@ -7,8 +7,7 @@ from app.db.base import Base
 
 user_status_enum = ENUM(
     "active",
-    "inactive",
-    "banned",
+    "disabled",
     "deleted",
     name="user_status",
     create_type=False,
@@ -31,11 +30,12 @@ class User(Base):
 
     preferred_languages = Column(ARRAY(String), nullable=False, server_default=text("ARRAY['en']::text[]"))
 
+    home_location_text = Column(Text, nullable=True)
+    rating_avg = Column(Float, nullable=False, server_default=text("5.00"))
     rating_count = Column(Integer, nullable=False, server_default=text("0"))
-    review_count = Column(Integer, nullable=False, server_default=text("0"))
-    exchange_count = Column(Integer, nullable=False, server_default=text("0"))
     trust_score = Column(Float, nullable=False, server_default=text("0"))
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    password_hash = Column(Text, nullable=True)

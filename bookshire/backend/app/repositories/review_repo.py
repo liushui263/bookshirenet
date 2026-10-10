@@ -45,13 +45,21 @@ def list_reviews_by_book(db: Session, book_id: UUID, skip: int = 0, limit: int =
     )
 
 
-def list_reviews_by_user(db: Session, user_id: UUID, skip: int = 0, limit: int = 50) -> List[Review]:
+def list_reviews_by_user(
+    db: Session,
+    user_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+    public_only: bool = True,
+) -> List[Review]:
+    query = db.query(Review).filter(
+        Review.user_id == user_id,
+        Review.deleted_at.is_(None),
+    )
+    if public_only:
+        query = query.filter(Review.visibility == "public")
     return (
-        db.query(Review)
-        .filter(
-            Review.user_id == user_id,
-            Review.deleted_at.is_(None),
-        )
+        query
         .order_by(Review.created_at.desc())
         .offset(skip)
         .limit(limit)

@@ -1,4 +1,4 @@
-function getApiBaseUrl() {
+export function getApiBaseUrl() {
   if (typeof window === "undefined") {
     return (
       process.env.INTERNAL_API_BASE_URL ||
@@ -37,6 +37,13 @@ export type Book = {
   page_count?: number | null;
 };
 
+export type CurrentUser = {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  display_name: string;
+};
+
 export type Review = {
   id: string;
   user_id: string;
@@ -55,7 +62,7 @@ export type ReadingStatus =
   | "read"
   | "abandoned";
 
-  export type UserBook = {
+export type UserBook = {
   id: string;
   user_id: string;
   edition_id: string;
@@ -126,21 +133,22 @@ export async function getBookReviews(bookId: string): Promise<Review[]> {
   );
 }
 
-export async function getUserBooks(userId: string): Promise<UserBook[]> {
-  return fetchJson<UserBook[]>(
-    `${getApiBaseUrl()}/api/v1/users/${encodeURIComponent(userId)}/books`
-  );
+export async function getMyBooks(token: string): Promise<UserBook[]> {
+  return fetchJson<UserBook[]>(`${getApiBaseUrl()}/api/v1/me/books`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
-export async function updateUserBookStatus(
-  userId: string,
+// Browser-side calls for the signed-in user go through this app's own
+// /api/backend proxy, which adds the token from the httpOnly session cookie.
+const BROWSER_PROXY = "/api/backend";
+
+export async function updateMyBookStatus(
   userBookId: string,
   status: ReadingStatus
 ): Promise<UserBook> {
   return fetchJson<UserBook>(
-    `${getApiBaseUrl()}/api/v1/users/${encodeURIComponent(
-      userId
-    )}/books/${encodeURIComponent(userBookId)}`,
+    `${BROWSER_PROXY}/me/books/${encodeURIComponent(userBookId)}`,
     {
       method: "PATCH",
       body: JSON.stringify({ status }),
@@ -148,14 +156,9 @@ export async function updateUserBookStatus(
   );
 }
 
-export async function removeUserBook(
-  userId: string,
-  userBookId: string
-): Promise<UserBook> {
+export async function removeMyBook(userBookId: string): Promise<UserBook> {
   return fetchJson<UserBook>(
-    `${getApiBaseUrl()}/api/v1/users/${encodeURIComponent(
-      userId
-    )}/books/${encodeURIComponent(userBookId)}`,
+    `${BROWSER_PROXY}/me/books/${encodeURIComponent(userBookId)}`,
     {
       method: "DELETE",
     }
@@ -167,14 +170,9 @@ export async function searchBooks(query: string): Promise<Book[]> {
     `${getApiBaseUrl()}/api/v1/books/search?q=${encodeURIComponent(query)}`
   );
 }
-export async function addBookToShelf(
-  userId: string,
-  bookId: string
-): Promise<UserBook> {
+export async function addBookToMyShelf(bookId: string): Promise<UserBook> {
   return fetchJson<UserBook>(
-    `${getApiBaseUrl()}/api/v1/users/${encodeURIComponent(
-      userId
-    )}/books/by-book/${encodeURIComponent(bookId)}`,
+    `${BROWSER_PROXY}/me/books/by-book/${encodeURIComponent(bookId)}`,
     {
       method: "POST",
     }

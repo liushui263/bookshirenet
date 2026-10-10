@@ -57,8 +57,11 @@ CREATE TABLE IF NOT EXISTS users (
     trust_score NUMERIC(8,4) NOT NULL DEFAULT 0 CHECK (trust_score >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+    password_hash TEXT
 );
+-- Added after the first release; re-running this file upgrades older databases.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE INDEX IF NOT EXISTS idx_users_home_location ON users USING gist(home_location);
