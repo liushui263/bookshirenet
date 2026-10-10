@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.DS_Store
+
+# Local database backups
+backups/*.sql
+
+# Local database backups
+backups/*.sql
+
+# Node / Next
+frontend/node_modules
+frontend/.next
+
+# Local env
+frontend/.env.local
+
+# Local database backups
+backups/*.sql
+
+# Node / Next
+frontend/node_modules
+frontend/.next
+
+# Local env
+frontend/.env.local
+
+mobile/node_modules

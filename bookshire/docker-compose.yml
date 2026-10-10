@@ -1,0 +1,67 @@
+name: bookshire-dev
+
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: bookshire-db
+    restart: always
+    environment:
+      POSTGRES_USER: bookshire
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bookshire
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookshire -d bookshire"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:latest
+    container_name: bookshire-adminer
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENV: dev
+      DATABASE_URL: postgresql://bookshire:password@db:5432/bookshire
+      SEED_DATA: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    environment:
+      INTERNAL_API_BASE_URL: http://backend:8000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_DEMO_USER_ID: 86f7818b-788e-4d0b-9e81-9c8bc918ac44
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
+  frontend_next:
