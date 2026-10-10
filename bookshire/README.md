@@ -57,6 +57,19 @@ API tests (with the stack running): `cd backend && pip install -r requirements-d
 
 On Vercel the API uses no connection pool of its own (`NullPool`) and relies on Supabase's pooler; set `DB_NULL_POOL=true` to do the same elsewhere.
 
+## The website (bookshire.net)
+
+`frontend/` is the whole bookshire.net site. Its home page is the daily discovery shelves (new and popular fiction in six languages, from Google Books with Open Library as a fallback), and every book there has a **+ My shelf** button that saves it into the BookShire catalog and the reader's shelf. The shelves are fetched at most once a day and cached for everyone, so visits don't spend Google Books quota; `/api/books` serves the same data as JSON.
+
+Frontend settings (Vercel project for bookshire.net, Root Directory `bookshire/frontend`):
+
+| Variable | Purpose |
+|---|---|
+| `INTERNAL_API_BASE_URL` | The API's URL, e.g. `https://bookshirenet-api.vercel.app` |
+| `NEXT_PUBLIC_API_BASE_URL` | Same URL, for the few calls made straight from the browser (search) |
+| `GOOGLE_BOOKS_API_KEY` | Server-only key for the discovery shelves |
+| `CRON_SECRET` | Lets the daily Vercel cron (`vercel.json`) call `/api/revalidate` to refresh the shelves |
+
 ## Current MVP Features
 
 ```text

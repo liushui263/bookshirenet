@@ -11,6 +11,9 @@ export async function SiteHeader() {
         <Link href="/" className="text-base font-bold text-gray-950">
           BookShire
         </Link>
+        <Link href="/catalog" className="font-semibold text-gray-600 hover:text-gray-950">
+          Catalog
+        </Link>
         <Link href="/search" className="font-semibold text-gray-600 hover:text-gray-950">
           Search
         </Link>
