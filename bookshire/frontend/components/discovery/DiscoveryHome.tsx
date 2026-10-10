@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DISCOVERY_GOTO_EVENT } from "@/components/HeaderNav";
 import Section from "@/components/discovery/Section";
 import { countBooks, type Book, type BooksData } from "@/lib/discovery/fetchBooks";
 
@@ -47,6 +48,16 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
     }
     const timer = window.setTimeout(() => goToSection(hashTarget), 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  // List links in the site header.
+  useEffect(() => {
+    function onGoto(event: Event) {
+      const sectionId = (event as CustomEvent<string>).detail;
+      if (TAB_FOR_SECTION[sectionId]) goToSection(sectionId);
+    }
+    window.addEventListener(DISCOVERY_GOTO_EVENT, onGoto);
+    return () => window.removeEventListener(DISCOVERY_GOTO_EVENT, onGoto);
   }, []);
 
   // Keep ?tab= in the address bar so a shared link opens the same tab.
