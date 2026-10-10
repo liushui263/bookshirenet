@@ -61,9 +61,17 @@ class UserBookShelfOut(UserBookOut):
     book_tags: List[str] = []
     book_categories: List[str] = []
 
+    book_authors: List[str] = []
+    book_description: Optional[str] = None
+
     edition_title: Optional[str] = None
     edition_language: Optional[str] = None
     edition_cover_url: Optional[str] = None
+    edition_publisher: Optional[str] = None
+    edition_publication_year: Optional[int] = None
+    edition_isbn_13: Optional[str] = None
+    edition_isbn_10: Optional[str] = None
+    edition_page_count: Optional[int] = None
 
 
 class AddByIsbnIn(BaseModel):

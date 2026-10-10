@@ -6,6 +6,42 @@ from app.models.book import Book, Edition
 from app.models.user_book import UserBook
 
 
+def _shelf_item(user_book: UserBook, edition: Edition, book: Book, authors: list[str]) -> dict:
+    return {
+        "id": user_book.id,
+        "user_id": user_book.user_id,
+        "edition_id": user_book.edition_id,
+        "status": user_book.status,
+        "condition": user_book.condition,
+        "location_text": user_book.location_text,
+        "exchangeable": user_book.exchangeable,
+        "visibility": user_book.visibility,
+        "personal_tags": user_book.personal_tags or [],
+        "personal_notes_summary": user_book.personal_notes_summary,
+        "acquired_at": user_book.acquired_at,
+        "started_at": user_book.started_at,
+        "finished_at": user_book.finished_at,
+        "created_at": user_book.created_at,
+        "updated_at": user_book.updated_at,
+        "book_id": book.id,
+        "book_title": book.title,
+        "book_subtitle": book.subtitle,
+        "book_cover_url": edition.cover_url or book.canonical_cover_url,
+        "book_tags": book.tags or [],
+        "book_categories": book.categories or [],
+        "book_authors": authors,
+        "book_description": book.canonical_description,
+        "edition_title": edition.title,
+        "edition_language": edition.language,
+        "edition_cover_url": edition.cover_url,
+        "edition_publisher": edition.publisher,
+        "edition_publication_year": edition.publication_year,
+        "edition_isbn_13": edition.isbn_13,
+        "edition_isbn_10": edition.isbn_10,
+        "edition_page_count": edition.page_count,
+    }
+
+
 def list_user_books(db: Session, user_id: UUID):
     rows = (
         db.query(UserBook, Edition, Book)
@@ -17,40 +53,10 @@ def list_user_books(db: Session, user_id: UUID):
         .all()
     )
 
-    result = []
+    from app.services.library_service import authors_by_book
 
-    for user_book, edition, book in rows:
-        result.append(
-            {
-                "id": user_book.id,
-                "user_id": user_book.user_id,
-                "edition_id": user_book.edition_id,
-                "status": user_book.status,
-                "condition": user_book.condition,
-                "location_text": user_book.location_text,
-                "exchangeable": user_book.exchangeable,
-                "visibility": user_book.visibility,
-                "personal_tags": user_book.personal_tags or [],
-                "personal_notes_summary": user_book.personal_notes_summary,
-                "acquired_at": user_book.acquired_at,
-                "started_at": user_book.started_at,
-                "finished_at": user_book.finished_at,
-                "created_at": user_book.created_at,
-                "updated_at": user_book.updated_at,
-
-                "book_id": book.id,
-                "book_title": book.title,
-                "book_subtitle": book.subtitle,
-                "book_cover_url": edition.cover_url or book.canonical_cover_url,
-                "book_tags": book.tags or [],
-                "book_categories": book.categories or [],
-
-                "edition_title": edition.title,
-                "edition_language": edition.language,
-                "edition_cover_url": edition.cover_url,
-            }
-        )
-
+    authors = authors_by_book(db, list({book.id for _, _, book in rows}))
+    result = [_shelf_item(user_book, edition, book, authors.get(book.id, [])) for user_book, edition, book in rows]
     return result
 
 
@@ -122,30 +128,7 @@ def get_user_book_shelf_item(db: Session, user_id: UUID, user_book_id: UUID):
     if not row:
         return None
 
+    from app.services.library_service import authors_by_book
+
     user_book, edition, book = row
-    return {
-        "id": user_book.id,
-        "user_id": user_book.user_id,
-        "edition_id": user_book.edition_id,
-        "status": user_book.status,
-        "condition": user_book.condition,
-        "location_text": user_book.location_text,
-        "exchangeable": user_book.exchangeable,
-        "visibility": user_book.visibility,
-        "personal_tags": user_book.personal_tags or [],
-        "personal_notes_summary": user_book.personal_notes_summary,
-        "acquired_at": user_book.acquired_at,
-        "started_at": user_book.started_at,
-        "finished_at": user_book.finished_at,
-        "created_at": user_book.created_at,
-        "updated_at": user_book.updated_at,
-        "book_id": book.id,
-        "book_title": book.title,
-        "book_subtitle": book.subtitle,
-        "book_cover_url": edition.cover_url or book.canonical_cover_url,
-        "book_tags": book.tags or [],
-        "book_categories": book.categories or [],
-        "edition_title": edition.title,
-        "edition_language": edition.language,
-        "edition_cover_url": edition.cover_url,
-    }
+    return _shelf_item(user_book, edition, book, authors_by_book(db, [book.id]).get(book.id, []))

@@ -1,5 +1,37 @@
-import type { Book } from "@/lib/discovery/fetchBooks";
-import BookCard from "@/components/discovery/BookCard";
+import { FALLBACK_COVER, type Book } from "@/lib/discovery/fetchBooks";
+import { AddDiscoveryBookButton } from "@/components/discovery/AddDiscoveryBookButton";
+import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
+
+const LANGUAGE_NAMES: Record<Book["language"], string> = {
+  zh: "中文",
+  en: "English",
+  fr: "Français",
+  es: "Español",
+  de: "Deutsch",
+  ru: "Русский",
+};
+
+function toSpineItem(book: Book): SpineItem {
+  return {
+    id: book.id,
+    title: book.title,
+    authors: book.authors.filter((author) => author !== "Unknown author"),
+    cover: book.cover === FALLBACK_COVER ? null : book.cover,
+    publisher: book.publisher,
+    published: book.publishedDate,
+    isbn: book.isbn,
+    pages: book.pageCount,
+    language: LANGUAGE_NAMES[book.language],
+    description: book.description,
+    link: book.sourceUrl
+      ? {
+          href: book.sourceUrl,
+          label: book.id.startsWith("ol-") ? "View on Open Library" : "View on Google Books",
+          external: true,
+        }
+      : undefined,
+  };
+}
 
 interface SectionProps {
   id?: string;
@@ -54,9 +86,9 @@ export default function Section({
           <div className="section-count">{books.length} picks</div>
         </div>
       </div>
-      <div className="grid">
-        {showSkeleton ? (
-          Array.from({ length: 6 }).map((_, index) => (
+      {showSkeleton ? (
+        <div className="grid">
+          {Array.from({ length: 6 }).map((_, index) => (
             <article className="card card-skeleton" key={`skeleton-${index}`}>
               <div className="card-cover card-skeleton-cover" />
               <div className="card-body">
@@ -65,15 +97,22 @@ export default function Section({
                 <span className="card-skeleton-line card-skeleton-line-wide" />
               </div>
             </article>
-          ))
-        ) : books.length ? (
-          books.map((book) => <BookCard key={book.id} book={book} signedIn={signedIn} />)
-        ) : (
-          <div className="section-empty">
-            {emptyMessage ?? "No books available for this shelf yet."}
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : books.length ? (
+        <SpineShelf
+          items={books.map(toSpineItem)}
+          label={title}
+          renderActions={(item) => {
+            const book = books.find((entry) => entry.id === item.id);
+            return book ? <AddDiscoveryBookButton key={book.id} book={book} signedIn={signedIn} /> : null;
+          }}
+        />
+      ) : (
+        <div className="section-empty">
+          {emptyMessage ?? "No books available for this shelf yet."}
+        </div>
+      )}
     </section>
   );
 }

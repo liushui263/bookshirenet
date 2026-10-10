@@ -30,7 +30,9 @@ export type Book = {
   tags?: string[] | null;
   categories?: string[] | null;
 
+  authors?: string[];
   publisher?: string | null;
+  publication_year?: number | null;
   published_date?: string | null;
   isbn_10?: string | null;
   isbn_13?: string | null;
@@ -86,9 +88,17 @@ export type UserBook = {
   book_tags: string[];
   book_categories: string[];
 
+  book_authors?: string[];
+  book_description?: string | null;
+
   edition_title?: string | null;
   edition_language?: string | null;
   edition_cover_url?: string | null;
+  edition_publisher?: string | null;
+  edition_publication_year?: number | null;
+  edition_isbn_13?: string | null;
+  edition_isbn_10?: string | null;
+  edition_page_count?: number | null;
 };
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {

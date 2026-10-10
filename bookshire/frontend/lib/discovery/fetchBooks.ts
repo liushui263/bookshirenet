@@ -8,6 +8,10 @@ export interface Book {
   language: BookLanguage;
   publishedDate?: string;
   sourceUrl?: string;
+  publisher?: string;
+  isbn?: string;
+  pageCount?: number;
+  description?: string;
 }
 
 export interface BooksData {
@@ -37,6 +41,10 @@ interface GoogleBooksVolume {
     };
     publishedDate?: string;
     infoLink?: string;
+    publisher?: string;
+    description?: string;
+    pageCount?: number;
+    industryIdentifiers?: { type?: string; identifier?: string }[];
   };
 }
 
@@ -51,6 +59,9 @@ interface OpenLibraryWork {
   first_publish_year?: number;
   cover_i?: number;
   language?: string[];
+  publisher?: string[];
+  isbn?: string[];
+  number_of_pages_median?: number;
 }
 
 interface OpenLibrarySearchResponse {
@@ -244,7 +255,7 @@ function buildOpenLibrarySearchUrl(params: {
   const searchParams = new URLSearchParams({
     q: query,
     limit: String(params.limit ?? 40),
-    fields: "key,title,author_name,first_publish_year,cover_i,language",
+    fields: "key,title,author_name,first_publish_year,cover_i,language,publisher,isbn,number_of_pages_median",
   });
 
   if (params.sort) {
@@ -276,7 +287,30 @@ function normalizeOpenLibraryBook(
       ? `${item.first_publish_year}-01-01`
       : undefined,
     sourceUrl: `https://openlibrary.org${item.key}`,
+    ...(item.publisher?.[0] ? { publisher: item.publisher[0] } : {}),
+    ...(pickIsbn(item.isbn) ? { isbn: pickIsbn(item.isbn) } : {}),
+    ...(item.number_of_pages_median ? { pageCount: item.number_of_pages_median } : {}),
   };
+}
+
+const DESCRIPTION_MAX_LENGTH = 420;
+
+// Descriptions are shown as a short blurb; keep the cached shelves small.
+function shortDescription(text: string): string {
+  const plain = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (plain.length <= DESCRIPTION_MAX_LENGTH) return plain;
+  return plain.slice(0, DESCRIPTION_MAX_LENGTH).replace(/\s+\S*$/, "") + "…";
+}
+
+function googleIsbn(ids?: { type?: string; identifier?: string }[]): string | undefined {
+  return (
+    ids?.find((id) => id.type === "ISBN_13")?.identifier ??
+    ids?.find((id) => id.type === "ISBN_10")?.identifier
+  );
+}
+
+function pickIsbn(isbns?: string[]): string | undefined {
+  return isbns?.find((isbn) => isbn.length === 13) ?? isbns?.[0];
 }
 
 function cleanTitle(title: string): string {
@@ -327,6 +361,10 @@ function normalizeGoogleBook(
     language,
     publishedDate: info.publishedDate,
     sourceUrl: info.infoLink,
+    ...(info.publisher ? { publisher: info.publisher } : {}),
+    ...(googleIsbn(info.industryIdentifiers) ? { isbn: googleIsbn(info.industryIdentifiers) } : {}),
+    ...(info.pageCount ? { pageCount: info.pageCount } : {}),
+    ...(info.description ? { description: shortDescription(info.description) } : {}),
   };
 }
 

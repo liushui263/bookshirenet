@@ -37,6 +37,15 @@ class BookOut(BaseModel):
     categories: List[str] = []
     tags: List[str] = []
 
+    # From the book's contributors and its first edition (see book_service.with_details).
+    authors: List[str] = []
+    publisher: Optional[str] = None
+    publication_year: Optional[int] = None
+    isbn_13: Optional[str] = None
+    isbn_10: Optional[str] = None
+    page_count: Optional[int] = None
+    cover_url: Optional[str] = None
+
     class Config:
         from_attributes = True
 

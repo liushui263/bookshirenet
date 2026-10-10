@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookCard } from "@/components/BookCard";
+import { CatalogShelf } from "@/components/spines/CatalogShelf";
 import { searchBooks } from "@/lib/api";
 import type { Book } from "@/lib/api";
 
@@ -99,11 +99,7 @@ export function SearchClient() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {books.map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
-            </div>
+            <CatalogShelf books={books} label="Search results" />
           )}
         </section>
       )}
