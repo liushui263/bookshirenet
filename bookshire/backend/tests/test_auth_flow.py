@@ -97,3 +97,46 @@ def test_demo_user_can_sign_in_in_dev(client):
 
 def test_legacy_routes_are_off_by_default(client):
     assert client.get("/users/86f7818b-788e-4d0b-9e81-9c8bc918ac44/books").status_code == 404
+
+
+def test_import_discovery_book_creates_it_once_and_shelves_it(client):
+    _, alice, _ = _register(client, "Alice")
+    _, bob, _ = _register(client, "Bob")
+    volume = {
+        "source": "google_books",
+        "external_id": f"vol-{uuid.uuid4().hex[:10]}",
+        "title": "  A Discovery Book  ",
+        "authors": ["Jane Writer", "Jane Writer", "Second Author"],
+        "cover_url": "https://books.google.com/books/content?id=x",
+        "language": "en",
+        "published_date": "2026-05-01",
+    }
+
+    assert client.post("/me/books/import", json=volume).status_code == 401
+
+    first = client.post("/me/books/import", headers=alice, json=volume)
+    assert first.status_code == 201, first.text
+    item = first.json()
+    assert item["book_title"] == "A Discovery Book"
+    assert item["book_cover_url"] == volume["cover_url"]
+
+    again = client.post("/me/books/import", headers=alice, json=volume)
+    assert again.json()["id"] == item["id"]
+
+    bobs = client.post("/me/books/import", headers=bob, json={**volume, "title": "Renamed"})
+    assert bobs.status_code == 201, bobs.text
+    assert bobs.json()["book_id"] == item["book_id"]
+    assert bobs.json()["book_title"] == "A Discovery Book"
+
+    assert client.get(f"/books/{item['book_id']}").status_code == 200
+    assert len(client.get("/me/books", headers=alice).json()) == 1
+
+
+def test_import_rejects_bad_input(client):
+    _, alice, _ = _register(client, "Alice")
+    base = {"source": "google_books", "external_id": "x", "title": "T"}
+    assert client.post("/me/books/import", headers=alice, json={**base, "source": "amazon"}).status_code == 422
+    assert client.post("/me/books/import", headers=alice, json={**base, "title": ""}).status_code == 422
+    ok = client.post("/me/books/import", headers=alice, json={**base, "external_id": f"x-{uuid.uuid4().hex}", "cover_url": "/cover-placeholder.svg"})
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["book_cover_url"] is None

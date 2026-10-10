@@ -1,8 +1,20 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, ENUM, JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
+
+# Postgres enum types created by db/init.sql.
+metadata_source_enum = ENUM(
+    "google_books", "open_library", "user", "ocr", "vision", "import", "admin",
+    name="metadata_source",
+    create_type=False,
+)
+book_format_enum = ENUM(
+    "hardcover", "paperback", "ebook", "audiobook", "unknown",
+    name="book_format",
+    create_type=False,
+)
 
 
 class Book(Base):
@@ -18,7 +30,7 @@ class Book(Base):
     canonical_description_language = Column(String(10))
     categories = Column(ARRAY(Text), nullable=False, server_default=text("ARRAY[]::text[]"))
     tags = Column(ARRAY(Text), nullable=False, server_default=text("ARRAY[]::text[]"))
-    metadata_source = Column(String, nullable=False, server_default=text("'user'"))
+    metadata_source = Column(metadata_source_enum, nullable=False, server_default=text("'user'"))
     external_ids = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     avg_rating = Column(Numeric(3, 2), nullable=False, server_default=text("0"))
     rating_count = Column(Integer, nullable=False, server_default=text("0"))
@@ -44,8 +56,10 @@ class Edition(Base):
     isbn_13 = Column(String(13))
     publisher = Column(Text)
     publication_year = Column(Integer)
-    format = Column(String, nullable=False, server_default=text("'unknown'"))
+    format = Column(book_format_enum, nullable=False, server_default=text("'unknown'"))
     cover_url = Column(Text)
+    metadata_source = Column(metadata_source_enum, nullable=False, server_default=text("'user'"))
+    external_ids = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
 
     book = relationship("Book", back_populates="editions")
     user_books = relationship("UserBook", back_populates="edition")
