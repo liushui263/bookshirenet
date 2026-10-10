@@ -18,7 +18,7 @@ def _publication_year(published_date: str | None) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _attach_authors(db: Session, book_id, authors: list[str]) -> None:
+def attach_authors(db: Session, book_id, authors: list[str]) -> None:
     for sort_order, name in enumerate(authors):
         contributor_id = db.execute(
             text("SELECT id FROM contributors WHERE name = :name ORDER BY created_at LIMIT 1"),
@@ -71,7 +71,7 @@ def find_or_create_book(db: Session, payload: DiscoveryBookImport) -> Book:
             external_ids=external_ids,
         )
     )
-    _attach_authors(db, book.id, payload.authors)
+    attach_authors(db, book.id, payload.authors)
     db.commit()
     db.refresh(book)
     return book

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -64,3 +64,25 @@ class UserBookShelfOut(UserBookOut):
     edition_title: Optional[str] = None
     edition_language: Optional[str] = None
     edition_cover_url: Optional[str] = None
+
+
+class AddByIsbnIn(BaseModel):
+    isbn: str = Field(min_length=1, max_length=40)
+
+
+class ShelfImportIn(BaseModel):
+    format: Literal["csv", "json"]
+    content: str = Field(min_length=1, max_length=2_000_000)
+
+
+class ShelfImportError(BaseModel):
+    row: int
+    title: Optional[str] = None
+    error: str
+
+
+class ShelfImportOut(BaseModel):
+    added: int
+    updated: int
+    failed: int
+    errors: List[ShelfImportError]

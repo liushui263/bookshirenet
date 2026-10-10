@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ReadingStatus, UserBook } from "@/lib/api";
-import { removeMyBook, updateMyBookStatus } from "@/lib/api";
+import { listMyBooksFromBrowser, removeMyBook, updateMyBookStatus } from "@/lib/api";
+import { BookDetailsEditor, CONDITION_LABELS } from "@/components/BookDetailsEditor";
+import { ShelfTools } from "@/components/ShelfTools";
 
 type ShelfStatus =
   | "unread"
@@ -69,6 +71,15 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
   const [items, setItems] = useState<UserBook[]>(initialItems);
   const [message, setMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  function upsertItem(item: UserBook) {
+    setItems((current) =>
+      current.some((entry) => entry.id === item.id)
+        ? current.map((entry) => (entry.id === item.id ? item : entry))
+        : [item, ...current]
+    );
+  }
 
   const grouped = useMemo(() => {
     const result: Record<ShelfStatus, UserBook[]> = {
@@ -149,6 +160,11 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
 
   return (
     <div>
+      <ShelfTools
+        onAdded={upsertItem}
+        onImported={async () => setItems(await listMyBooksFromBrowser())}
+      />
+
       {message && (
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-sm">
           {message}
@@ -161,7 +177,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
             Your shelf is empty.
           </h2>
           <p className="mt-2 text-gray-600">
-            Add an edition to your shelf from a book detail page.
+            Add a book by ISBN above, import a file, or pick books from the home page.
           </p>
           <Link
             href="/"
@@ -236,7 +252,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                                   </p>
                                 )}
 
-                                {item.edition_language && (
+                                {item.edition_language && item.edition_language !== "unknown" && (
                                   <p className="mt-2 text-xs text-gray-500">
                                     Edition language: {item.edition_language}
                                   </p>
@@ -267,7 +283,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                                   Condition
                                 </dt>
                                 <dd className="mt-1 text-gray-600">
-                                  {item.condition ?? "Unknown"}
+                                  {(item.condition && CONDITION_LABELS[item.condition]) || "Not set"}
                                 </dd>
                               </div>
 
@@ -276,16 +292,17 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                                   Visibility
                                 </dt>
                                 <dd className="mt-1 text-gray-600">
-                                  {item.visibility}
+                                  {item.visibility === "public" ? "Everyone" : "Only me"}
+                                  {item.exchangeable ? " · open to swap" : ""}
                                 </dd>
                               </div>
 
                               <div>
                                 <dt className="font-semibold text-gray-900">
-                                  Updated
+                                  {item.location_text ? "Where" : "Updated"}
                                 </dt>
-                                <dd className="mt-1 text-gray-600">
-                                  {formatDate(item.updated_at)}
+                                <dd className="mt-1 line-clamp-2 text-gray-600">
+                                  {item.location_text || formatDate(item.updated_at)}
                                 </dd>
                               </div>
 
@@ -332,6 +349,18 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                               </select>
 
                               <button
+                                type="button"
+                                disabled={isBusy}
+                                aria-expanded={editingId === item.id}
+                                onClick={() =>
+                                  setEditingId((current) => (current === item.id ? null : item.id))
+                                }
+                                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                              >
+                                Edit details
+                              </button>
+
+                              <button
                                 disabled={isBusy}
                                 onClick={() => handleRemove(item)}
                                 className="rounded-full border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
@@ -339,6 +368,18 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                                 Remove
                               </button>
                             </div>
+
+                            {editingId === item.id && (
+                              <BookDetailsEditor
+                                item={item}
+                                onCancel={() => setEditingId(null)}
+                                onSaved={(updated) => {
+                                  upsertItem(updated);
+                                  setEditingId(null);
+                                  setMessage(`Saved "${updated.book_title}".`);
+                                }}
+                              />
+                            )}
                           </div>
                         </div>
                       </article>

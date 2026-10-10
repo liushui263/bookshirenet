@@ -74,7 +74,11 @@ def update_user_book(db: Session, user_id: UUID, user_book_id: UUID, payload: Us
     _validate_status(data.get("status"))
     _validate_visibility(data.get("visibility"))
 
-    updated = user_book_repo.update_user_book(db, user_book, data)
+    try:
+        updated = user_book_repo.update_user_book(db, user_book, data)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="The start date can't be after the finish date.") from exc
     shelf_item = user_book_repo.get_user_book_shelf_item(db, user_id, updated.id)
     return shelf_item or updated
 

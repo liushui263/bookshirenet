@@ -36,6 +36,10 @@ class Settings:
 
     # Old /users/{user_id}/books routes that trust the user id in the URL.
     # Only for local development of clients that have no sign-in yet (the mobile app).
+    # Optional. Used to look up books by ISBN; without it Google Books allows fewer requests,
+    # and Open Library is tried as a fallback either way.
+    GOOGLE_BOOKS_API_KEY: str = os.getenv("GOOGLE_BOOKS_API_KEY", "")
+
     ENABLE_LEGACY_USER_ROUTES: bool = os.getenv("ENABLE_LEGACY_USER_ROUTES", "false").lower() == "true"
 
     def __init__(self):
