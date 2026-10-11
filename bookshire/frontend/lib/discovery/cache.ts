@@ -15,7 +15,7 @@ const getCachedBooks = unstable_cache(
     }
     return data;
   },
-  ["discovery-books-v3"],
+  ["discovery-books-v4"],
   { revalidate: ONE_DAY_SECONDS, tags: [DISCOVERY_CACHE_TAG] }
 );
 
