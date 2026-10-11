@@ -1,6 +1,6 @@
 import { FALLBACK_COVER, type Book } from "@/lib/discovery/fetchBooks";
 import { AddDiscoveryBookButton } from "@/components/discovery/AddDiscoveryBookButton";
-import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
+import { SpineShelf, type ShelfLocale, type SpineItem } from "@/components/spines/SpineShelf";
 
 const LANGUAGE_NAMES: Record<Book["language"], string> = {
   zh: "中文",
@@ -11,7 +11,7 @@ const LANGUAGE_NAMES: Record<Book["language"], string> = {
   ru: "Русский",
 };
 
-function toSpineItem(book: Book): SpineItem {
+function toSpineItem(book: Book, locale: ShelfLocale): SpineItem {
   return {
     id: book.id,
     title: book.title,
@@ -26,7 +26,7 @@ function toSpineItem(book: Book): SpineItem {
     link: book.sourceUrl
       ? {
           href: book.sourceUrl,
-          label: book.id.startsWith("ol-") ? "View on Open Library" : "View on Google Books",
+          label: `${locale === "zh" ? "在" : "View on"} ${book.id.startsWith("ol-") ? "Open Library" : "Google Books"}${locale === "zh" ? " 查看" : ""}`,
           external: true,
         }
       : undefined,
@@ -44,6 +44,7 @@ interface SectionProps {
   sourceLabel?: string;
   updatedAtLabel?: string;
   emptyMessage?: string;
+  locale?: ShelfLocale;
 }
 
 export default function Section({
@@ -57,6 +58,7 @@ export default function Section({
   sourceLabel,
   updatedAtLabel,
   emptyMessage,
+  locale = "en",
 }: SectionProps) {
   const sectionLabelId = id ? `${id}-title` : undefined;
   const showSkeleton = isRefreshing && books.length === 0;
@@ -80,10 +82,12 @@ export default function Section({
           ) : null}
           {isRefreshing ? (
             <span className="section-refreshing" aria-live="polite">
-              Refreshing...
+              {locale === "zh" ? "正在更新…" : "Refreshing..."}
             </span>
           ) : null}
-          <div className="section-count">{books.length} picks</div>
+          <div className="section-count">
+            {locale === "zh" ? `${books.length} 本` : `${books.length} picks`}
+          </div>
         </div>
       </div>
       {showSkeleton ? (
@@ -101,16 +105,17 @@ export default function Section({
         </div>
       ) : books.length ? (
         <SpineShelf
-          items={books.map(toSpineItem)}
+          items={books.map((book) => toSpineItem(book, locale))}
           label={title}
+          locale={locale}
           renderActions={(item) => {
             const book = books.find((entry) => entry.id === item.id);
-            return book ? <AddDiscoveryBookButton key={book.id} book={book} signedIn={signedIn} /> : null;
+            return book ? <AddDiscoveryBookButton key={book.id} book={book} signedIn={signedIn} locale={locale} /> : null;
           }}
         />
       ) : (
         <div className="section-empty">
-          {emptyMessage ?? "No books available for this shelf yet."}
+          {emptyMessage ?? (locale === "zh" ? "这个书单暂时还没有书。" : "No books available for this shelf yet.")}
         </div>
       )}
     </section>

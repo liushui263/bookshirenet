@@ -76,6 +76,14 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
     timeZone: "America/Chicago",
   }).format(new Date(booksData.updatedAt));
   const listUpdatedAt = `Updated ${lastRefreshed} CT`;
+  const listUpdatedAtZh = `更新于 ${new Intl.DateTimeFormat("zh-CN", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/Chicago",
+  }).format(new Date(booksData.updatedAt))}`;
 
   const totalBooks = countBooks(booksData);
   const hasBooks = totalBooks > 0;
@@ -104,6 +112,7 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
   const catalogSections: Array<{
     id: string;
     eyebrow: string;
+    locale?: "zh";
     title: string;
     subtitle: string;
     books: Book[];
@@ -111,29 +120,33 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
     {
       id: "zh-new-publish",
       eyebrow: "中文",
-      title: "Chinese: New Publish (Top 10)",
-      subtitle: "Newest Chinese-language fiction titles.",
+      locale: "zh",
+      title: "中文新书榜",
+      subtitle: "最新出版的中文小说。",
       books: booksData.zhNewPublish,
     },
     {
       id: "zh-best-week",
       eyebrow: "中文",
-      title: "Chinese: Popular This Week",
-      subtitle: "Popular Chinese fiction, preferring titles published in the last 7 days.",
+      locale: "zh",
+      title: "中文本周热门",
+      subtitle: "近 7 天出版的热门中文小说优先。",
       books: booksData.zhBestSellerWeek,
     },
     {
       id: "zh-best-month",
       eyebrow: "中文",
-      title: "Chinese: Popular This Month",
-      subtitle: "Popular Chinese fiction from the last 30 days, not repeated from the week list.",
+      locale: "zh",
+      title: "中文本月热门",
+      subtitle: "近 30 天的热门中文小说，不与本周榜重复。",
       books: booksData.zhBestSellerMonth,
     },
     {
       id: "zh-best-year",
       eyebrow: "中文",
-      title: "Chinese: Popular This Year",
-      subtitle: "Popular Chinese fiction from the last year, not repeated from shorter lists.",
+      locale: "zh",
+      title: "中文年度热门",
+      subtitle: "近一年的热门中文小说，不与周榜、月榜重复。",
       books: booksData.zhBestSellerYear,
     },
     {
@@ -365,13 +378,18 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
                   subtitle={section.subtitle}
                   books={section.books}
                   sourceLabel={
-                    section.id.includes("best")
-                      ? "Source: Google Books search (Open Library fallback)"
-                      : "Source: Google Books newest"
+                    section.locale === "zh"
+                      ? section.id.includes("best")
+                        ? "来源：Google Books / Open Library"
+                        : "来源：Google Books"
+                      : section.id.includes("best")
+                        ? "Source: Google Books search (Open Library fallback)"
+                        : "Source: Google Books newest"
                   }
-                  updatedAtLabel={listUpdatedAt}
+                  updatedAtLabel={section.locale === "zh" ? listUpdatedAtZh : listUpdatedAt}
                   signedIn={signedIn}
-                  emptyMessage={sectionEmptyMessage}
+                  locale={section.locale}
+                  emptyMessage={section.locale === "zh" ? undefined : sectionEmptyMessage}
                 />
               ))}
             </div>
