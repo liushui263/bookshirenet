@@ -7,6 +7,12 @@ import type { Book } from "@/lib/discovery/fetchBooks";
 type Props = {
   book: Book;
   signedIn: boolean;
+  locale?: "en" | "zh";
+};
+
+const TEXT = {
+  en: { signIn: "Sign in to add", saved: "On your shelf ✓", saving: "Adding...", retry: "Try again", add: "+ My shelf" },
+  zh: { signIn: "登录后加入书架", saved: "已在我的书架 ✓", saving: "正在加入…", retry: "再试一次", add: "+ 加入我的书架" },
 };
 
 type State = "idle" | "saving" | "saved" | "error";
@@ -18,13 +24,14 @@ function sourceOf(book: Book) {
     : { source: "google_books", external_id: book.id };
 }
 
-export function AddDiscoveryBookButton({ book, signedIn }: Props) {
+export function AddDiscoveryBookButton({ book, signedIn, locale = "en" }: Props) {
   const [state, setState] = useState<State>("idle");
+  const text = TEXT[locale];
 
   if (!signedIn) {
     return (
       <Link className="card-add" href="/login?next=/">
-        Sign in to add
+        {text.signIn}
       </Link>
     );
   }
@@ -32,7 +39,7 @@ export function AddDiscoveryBookButton({ book, signedIn }: Props) {
   if (state === "saved") {
     return (
       <Link className="card-add card-add-done" href="/shelf">
-        On your shelf ✓
+        {text.saved}
       </Link>
     );
   }
@@ -65,7 +72,7 @@ export function AddDiscoveryBookButton({ book, signedIn }: Props) {
       onClick={handleAdd}
       disabled={state === "saving"}
     >
-      {state === "saving" ? "Adding..." : state === "error" ? "Try again" : "+ My shelf"}
+      {state === "saving" ? text.saving : state === "error" ? text.retry : text.add}
     </button>
   );
 }

@@ -26,6 +26,15 @@ type SpineShelfProps = {
   // Books per shelf board; longer lists stack into a bookcase and the
   // detail panel opens under the board holding the active book.
   perRow?: number;
+  // Language of the panel's own labels (Author, Publisher, …).
+  locale?: ShelfLocale;
+};
+
+export type ShelfLocale = "en" | "zh";
+
+const FACT_LABELS: Record<ShelfLocale, Record<"author" | "publisher" | "published" | "isbn" | "pages", string>> = {
+  en: { author: "Author", publisher: "Publisher", published: "Published", isbn: "ISBN", pages: "Pages" },
+  zh: { author: "作者", publisher: "出版社", published: "出版时间", isbn: "ISBN", pages: "页数" },
 };
 
 // Cloth colors for book spines: [background, text].
@@ -44,7 +53,9 @@ const SPINE_COLORS: [string, string][] = [
   ["#22252b", "#e7d6b0"], // ink
 ];
 
-const CJK = /[぀-ヿ㐀-鿿豈-﫿가-힯]/;
+// CJK letters plus CJK and full-width punctuation (《》：（）), which also
+// misrender in sideways Latin text.
+const CJK = /[\u3000-\u303f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/;
 
 function hash(text: string) {
   let value = 2166136261;
@@ -64,16 +75,51 @@ function spineStyle(item: SpineItem) {
   return { background, color, width, height, long };
 }
 
+// Punctuation turned for vertical text, so brackets and colons read correctly
+// when the title is stacked top to bottom.
+const VERTICAL_PUNCTUATION: Record<string, string> = {
+  "《": "︽", "》": "︾", "〈": "︿", "〉": "﹀", "（": "︵", "）": "︶", "(": "︵", ")": "︶",
+  "「": "﹁", "」": "﹂", "『": "﹃", "』": "﹄", "【": "︻", "】": "︼", "〔": "︹", "〕": "︺",
+  "：": "︰", ":": "︰", "，": "︐", ",": "︐", "。": "︒", "、": "︑", "；": "︔", ";": "︔",
+  "！": "︕", "!": "︕", "？": "︖", "?": "︖", "…": "︙", "—": "︱", "–": "︲", "-": "︲", "～": "≀", "~": "≀",
+};
+
+// Latin letters and digits inside a CJK title (e.g. "三体III", "1Q84") stay together.
+const LATIN_RUN = /^[A-Za-z0-9\u00c0-\u024f\u0400-\u04ff.'·&+]+$/;
+
+function stackTokens(text: string): { text: string; sideways: boolean }[] {
+  const tokens: { text: string; sideways: boolean }[] = [];
+  let run = "";
+  const flush = () => {
+    if (run) tokens.push({ text: run, sideways: run.length > 2 });
+    run = "";
+  };
+  for (const char of Array.from(text.trim())) {
+    if (LATIN_RUN.test(char) || (run && char === " ")) {
+      run += char;
+      continue;
+    }
+    flush();
+    if (/\s/.test(char)) continue;
+    tokens.push({ text: VERTICAL_PUNCTUATION[char] ?? char, sideways: false });
+  }
+  flush();
+  return tokens.map((token) => ({ ...token, text: token.text.trim() })).filter((token) => token.text);
+}
+
 // CJK spines stack upright characters one per line, which renders the same with
 // every font (vertical writing modes depend on the font's vertical metrics).
+// Runs of Latin letters are turned sideways instead of being split into letters.
 function SpineText({ text, className }: { text: string; className: string }) {
   if (!CJK.test(text)) {
     return <span className={className}>{text}</span>;
   }
   return (
     <span className={`${className} spine-stack`}>
-      {Array.from(text.replace(/\s+/g, "")).map((char, index) => (
-        <span key={index}>{char}</span>
+      {stackTokens(text).map((token, index) => (
+        <span key={index} className={token.sideways ? "spine-stack-sideways" : undefined}>
+          {token.text}
+        </span>
       ))}
     </span>
   );
@@ -83,7 +129,7 @@ function yearOf(published?: string | null) {
   return published?.match(/\d{4}/)?.[0] ?? null;
 }
 
-export function SpineShelf({ items, label, renderActions, perRow }: SpineShelfProps) {
+export function SpineShelf({ items, label, renderActions, perRow, locale = "en" }: SpineShelfProps) {
   const [activeId, setActiveId] = useState(items[0]?.id ?? null);
   const panelId = useId();
   const active = items.find((item) => item.id === activeId) ?? items[0];
@@ -92,11 +138,12 @@ export function SpineShelf({ items, label, renderActions, perRow }: SpineShelfPr
 
   const year = yearOf(active.published);
   const facts: [string, string][] = [];
-  if (active.authors.length) facts.push(["Author", active.authors.join(", ")]);
-  if (active.publisher) facts.push(["Publisher", active.publisher]);
-  if (year) facts.push(["Published", active.published && active.published.length > 4 ? active.published : year]);
-  if (active.isbn) facts.push(["ISBN", active.isbn]);
-  if (active.pages) facts.push(["Pages", String(active.pages)]);
+  const labels = FACT_LABELS[locale];
+  if (active.authors.length) facts.push([labels.author, active.authors.join(locale === "zh" ? "、" : ", ")]);
+  if (active.publisher) facts.push([labels.publisher, active.publisher]);
+  if (year) facts.push([labels.published, active.published && active.published.length > 4 ? active.published : year]);
+  if (active.isbn) facts.push([labels.isbn, active.isbn]);
+  if (active.pages) facts.push([labels.pages, String(active.pages)]);
   facts.push(...(active.extraFacts ?? []));
 
   const size = perRow && perRow > 0 ? perRow : items.length;
@@ -109,7 +156,7 @@ export function SpineShelf({ items, label, renderActions, perRow }: SpineShelfPr
         {active.cover ? (
           // Covers come from several hosts (Google Books, Open Library, uploads).
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={active.cover} alt={`Cover of ${active.title}`} loading="lazy" />
+          <img src={active.cover} alt={locale === "zh" ? `《${active.title}》封面` : `Cover of ${active.title}`} loading="lazy" />
         ) : (
           <div
             className="spine-detail-cover-blank"

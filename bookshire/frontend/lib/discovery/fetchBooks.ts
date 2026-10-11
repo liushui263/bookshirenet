@@ -293,6 +293,76 @@ function normalizeOpenLibraryBook(
   };
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", hellip: "…", mdash: "—", ndash: "–",
+  ldquo: "“", rdquo: "”", lsquo: "‘", rsquo: "’", middot: "·",
+};
+
+// Windows-1252 characters that stand in for bytes 0x80–0x9f when UTF-8 text
+// was decoded with the wrong code page.
+const CP1252_BYTES: Record<string, number> = {
+  "€": 0x80, "‚": 0x82, "ƒ": 0x83, "„": 0x84, "…": 0x85, "†": 0x86, "‡": 0x87, "ˆ": 0x88,
+  "‰": 0x89, "Š": 0x8a, "‹": 0x8b, "Œ": 0x8c, "Ž": 0x8e, "‘": 0x91, "’": 0x92, "“": 0x93,
+  "”": 0x94, "•": 0x95, "–": 0x96, "—": 0x97, "˜": 0x98, "™": 0x99, "š": 0x9a, "›": 0x9b,
+  "œ": 0x9c, "ž": 0x9e, "Ÿ": 0x9f,
+};
+
+// "ä¸‰ä½“" style text: a UTF-8 lead byte followed by continuation bytes, read as Latin-1.
+const MOJIBAKE = /[\u00c2-\u00f4][\u0080-\u00bf\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u0192\u02c6\u02dc\u2013-\u2122]/;
+
+function repairMojibake(text: string): string {
+  if (!MOJIBAKE.test(text)) return text;
+  const bytes: number[] = [];
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    const byte = code <= 0xff ? code : CP1252_BYTES[char];
+    if (byte === undefined) return text;
+    bytes.push(byte);
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+  } catch {
+    return text;
+  }
+}
+
+// Clean text from the book APIs: HTML entities, mis-decoded UTF-8, stray
+// replacement and control characters.
+export function cleanText(text: string): string {
+  const decoded = text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&([a-z]+);/gi, (entity, name) => HTML_ENTITIES[name.toLowerCase()] ?? entity);
+  return repairMojibake(decoded)
+    .replace(/[\u0000-\u001f\u007f-\u009f\ufffd]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const CJK_TEXT = /[\u3400-\u9fff\uf900-\ufaff]/;
+
+// Chinese lists keep only titles written in Chinese characters; romanized
+// catalog entries ("Hong lou meng") and text that could not be repaired are dropped.
+function fitsLanguage(book: Book): boolean {
+  if (MOJIBAKE.test(book.title)) return false;
+  return book.language !== "zh" || CJK_TEXT.test(book.title);
+}
+
+function cleanBook(book: Book | null): Book | null {
+  if (!book) return null;
+  const title = cleanText(book.title);
+  if (!title) return null;
+  const cleaned: Book = {
+    ...book,
+    title,
+    authors: book.authors.map(cleanText).filter(Boolean),
+    ...(book.publisher ? { publisher: cleanText(book.publisher) } : {}),
+    ...(book.description ? { description: cleanText(book.description) } : {}),
+  };
+  if (!cleaned.authors.length) cleaned.authors = ["Unknown author"];
+  return fitsLanguage(cleaned) ? cleaned : null;
+}
+
 const DESCRIPTION_MAX_LENGTH = 420;
 
 // Descriptions are shown as a short blurb; keep the cached shelves small.
@@ -388,7 +458,7 @@ async function fetchGoogleBooks(params: {
   });
 
   return (data?.items ?? [])
-    .map((item) => normalizeGoogleBook(item, params.language))
+    .map((item) => cleanBook(normalizeGoogleBook(item, params.language)))
     .filter((item): item is Book => item !== null);
 }
 
@@ -402,7 +472,7 @@ async function fetchOpenLibraryBooks(params: {
   const data = await fetchJson<OpenLibrarySearchResponse>(url);
 
   return (data?.docs ?? [])
-    .map((item) => normalizeOpenLibraryBook(item, params.language))
+    .map((item) => cleanBook(normalizeOpenLibraryBook(item, params.language)))
     .filter((item): item is Book => item !== null);
 }
 
