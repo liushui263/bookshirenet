@@ -1,6 +1,5 @@
 import { FALLBACK_COVER, type Book } from "@/lib/discovery/fetchBooks";
 import { AddDiscoveryBookButton } from "@/components/discovery/AddDiscoveryBookButton";
-import type { ReactNode } from "react";
 import { useLocale } from "@/components/LocaleProvider";
 import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
 import type { Locale } from "@/lib/i18n";
@@ -47,8 +46,6 @@ interface SectionProps {
   sourceLabel?: string;
   updatedAtLabel?: string;
   emptyMessage?: string;
-  // Controls shown under the heading, e.g. category buttons.
-  toolbar?: ReactNode;
 }
 
 export default function Section({
@@ -62,7 +59,6 @@ export default function Section({
   sourceLabel,
   updatedAtLabel,
   emptyMessage,
-  toolbar,
 }: SectionProps) {
   const locale = useLocale();
   const sectionLabelId = id ? `${id}-title` : undefined;
@@ -95,7 +91,6 @@ export default function Section({
           </div>
         </div>
       </div>
-      {toolbar}
       {showSkeleton ? (
         <div className="grid">
           {Array.from({ length: 6 }).map((_, index) => (

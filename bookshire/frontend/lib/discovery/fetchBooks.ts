@@ -16,11 +16,19 @@ export interface Book {
   ratingsCount?: number;
 }
 
+// The lists of one language in one category. Chinese and English have all
+// four; the other languages have the yearly list only.
+export interface CategoryShelves {
+  newPublish?: Book[];
+  week?: Book[];
+  month?: Book[];
+  year: Book[];
+}
+
 export interface BooksData {
   zhNewPublish: Book[];
-  // New releases in the other categories (fiction is zhNewPublish/enNewPublish).
-  zhNewByCategory: Partial<Record<CategoryId, Book[]>>;
-  enNewByCategory: Partial<Record<CategoryId, Book[]>>;
+  // Lists for every category but fiction (fiction keeps the fields below).
+  byCategory: Partial<Record<BookLanguage, Partial<Record<CategoryId, CategoryShelves>>>>;
   zhBestSellerWeek: Book[];
   zhBestSellerMonth: Book[];
   zhBestSellerYear: Book[];
@@ -375,7 +383,8 @@ function cleanBook(book: Book | null): Book | null {
   return fitsLanguage(cleaned) ? cleaned : null;
 }
 
-const DESCRIPTION_MAX_LENGTH = 420;
+// Kept short so the cached lists for every category stay well under the 2 MB cache item limit.
+const DESCRIPTION_MAX_LENGTH = 300;
 
 // Descriptions are shown as a short blurb; keep the cached shelves small.
 function shortDescription(text: string): string {
@@ -687,18 +696,18 @@ async function fetchNewPublishBooks(language: BookLanguage, category: Category) 
   return takeTop(pool.sort(newestFirst));
 }
 
-async function fetchPopularPool(language: BookLanguage, orderBy?: "newest") {
-  const googlePool = await fetchCategoryPool(language, FICTION, orderBy);
+async function fetchPopularPool(language: BookLanguage, category: Category, orderBy?: "newest") {
+  const googlePool = await fetchCategoryPool(language, category, orderBy);
   if (googlePool.length > 0) {
     return googlePool;
   }
 
   // Fallback to Open Library if Google Books is exhausted/rate limited:
-  // recent fiction ordered by how many readers have shelved it.
+  // recent books ordered by how many readers have shelved them.
   return dedupeBooks(
     await fetchOpenLibraryBooks({
       language,
-      subject: "fiction",
+      subject: category.subject,
       limit: 40,
       sort: orderBy === "newest" ? "new" : "readinglog",
       sinceYear: sinceYear(POPULAR_MAX_AGE_DAYS),
@@ -733,10 +742,10 @@ function buildShelf(candidates: Book[], used: Set<string>, maxAgeDays: number, t
  * Week, month and year shelves for one language, sharing two candidate pools
  * so no book appears on more than one shelf.
  */
-async function fetchPopularShelves(language: BookLanguage) {
+async function fetchPopularShelves(language: BookLanguage, category: Category) {
   const [newestPool, relevancePool] = await Promise.all([
-    fetchPopularPool(language, "newest"),
-    fetchPopularPool(language),
+    fetchPopularPool(language, category, "newest"),
+    fetchPopularPool(language, category),
   ]);
   const pool = mergePools(newestPool, relevancePool);
   const used = new Set<string>();
@@ -748,56 +757,62 @@ async function fetchPopularShelves(language: BookLanguage) {
   };
 }
 
-async function fetchPopularYear(language: BookLanguage) {
-  const pool = await fetchPopularPool(language);
+async function fetchPopularYear(language: BookLanguage, category: Category) {
+  const pool = await fetchPopularPool(language, category);
   return buildShelf(pool, new Set(), 365, POPULAR_MAX_AGE_DAYS);
 }
 
-// New releases for every category but fiction, which has its own list.
-async function fetchNewByCategory(language: BookLanguage) {
-  const lists = await Promise.all(
-    CATEGORIES.slice(1).map(async (category) => [category.id, await fetchNewPublishBooks(language, category)] as const)
+const ALL_LISTS: BookLanguage[] = ["zh", "en"];
+const YEAR_ONLY: BookLanguage[] = ["fr", "es", "de", "ru"];
+
+async function fetchCategoryShelves(language: BookLanguage, category: Category): Promise<CategoryShelves> {
+  if (!ALL_LISTS.includes(language)) {
+    return { year: await fetchPopularYear(language, category) };
+  }
+  const [newPublish, popular] = await Promise.all([
+    fetchNewPublishBooks(language, category),
+    fetchPopularShelves(language, category),
+  ]);
+  return { newPublish, ...popular };
+}
+
+// Every list for every category but fiction, by language.
+async function fetchByCategory(): Promise<BooksData["byCategory"]> {
+  const languages = [...ALL_LISTS, ...YEAR_ONLY];
+  const entries = await Promise.all(
+    languages.map(async (language) => {
+      const lists = await Promise.all(
+        CATEGORIES.slice(1).map(async (category) => [category.id, await fetchCategoryShelves(language, category)] as const)
+      );
+      return [language, Object.fromEntries(lists)] as const;
+    })
   );
-  return Object.fromEntries(lists) as Partial<Record<CategoryId, Book[]>>;
+  return Object.fromEntries(entries);
 }
 
 export async function fetchBooks(): Promise<BooksData> {
   googleRequests = new Map();
-  const [
-    zhNewPublish,
-    zhNewByCategory,
-    zhPopular,
-    enNewPublish,
-    enNewByCategory,
-    enPopular,
-    frBestSellerYear,
-    esBestSellerYear,
-    deBestSellerYear,
-    ruBestSellerYear,
-  ] = await Promise.all([
-    fetchNewPublishBooks("zh", FICTION),
-    fetchNewByCategory("zh"),
-    fetchPopularShelves("zh"),
-    fetchNewPublishBooks("en", FICTION),
-    fetchNewByCategory("en"),
-    fetchPopularShelves("en"),
-    fetchPopularYear("fr"),
-    fetchPopularYear("es"),
-    fetchPopularYear("de"),
-    fetchPopularYear("ru"),
-  ]);
+  const [zh, en, frBestSellerYear, esBestSellerYear, deBestSellerYear, ruBestSellerYear, byCategory] =
+    await Promise.all([
+      fetchCategoryShelves("zh", FICTION),
+      fetchCategoryShelves("en", FICTION),
+      fetchPopularYear("fr", FICTION),
+      fetchPopularYear("es", FICTION),
+      fetchPopularYear("de", FICTION),
+      fetchPopularYear("ru", FICTION),
+      fetchByCategory(),
+    ]);
 
   return {
-    zhNewPublish,
-    zhNewByCategory,
-    zhBestSellerWeek: zhPopular.week,
-    zhBestSellerMonth: zhPopular.month,
-    zhBestSellerYear: zhPopular.year,
-    enNewPublish,
-    enNewByCategory,
-    enBestSellerWeek: enPopular.week,
-    enBestSellerMonth: enPopular.month,
-    enBestSellerYear: enPopular.year,
+    zhNewPublish: zh.newPublish ?? [],
+    byCategory,
+    zhBestSellerWeek: zh.week ?? [],
+    zhBestSellerMonth: zh.month ?? [],
+    zhBestSellerYear: zh.year,
+    enNewPublish: en.newPublish ?? [],
+    enBestSellerWeek: en.week ?? [],
+    enBestSellerMonth: en.month ?? [],
+    enBestSellerYear: en.year,
     frBestSellerYear,
     esBestSellerYear,
     deBestSellerYear,
@@ -807,8 +822,11 @@ export async function fetchBooks(): Promise<BooksData> {
 }
 
 export function countBooks(data: BooksData) {
-  const lists: unknown[] = Object.values(data).flatMap((value) =>
-    Array.isArray(value) ? [value] : value && typeof value === "object" ? Object.values(value) : []
-  );
-  return lists.reduce<number>((total, list) => total + (Array.isArray(list) ? list.length : 0), 0);
+  const lists: Book[][] = Object.values(data).filter(Array.isArray);
+  for (const categories of Object.values(data.byCategory ?? {})) {
+    for (const shelves of Object.values(categories ?? {})) {
+      lists.push(...Object.values(shelves ?? {}).filter(Array.isArray));
+    }
+  }
+  return lists.reduce((total, list) => total + list.length, 0);
 }

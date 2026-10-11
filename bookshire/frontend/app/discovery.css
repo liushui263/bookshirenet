@@ -1090,3 +1090,8 @@ html[lang^="zh"] .discovery .hero h1 {
   font-size: clamp(2.2rem, 4.2vw, 3.6rem);
   line-height: 1.2;
 }
+
+.discovery .list-tab-active:hover,
+.discovery .category-chip-active:hover {
+  color: #fff;
+}

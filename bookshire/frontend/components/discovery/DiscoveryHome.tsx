@@ -2,13 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DISCOVERY_GOTO_EVENT } from "@/components/HeaderNav";
 import Section from "@/components/discovery/Section";
 import { useLocale, useT } from "@/components/LocaleProvider";
 import { CATEGORY_IDS, CATEGORY_LABELS } from "@/lib/discovery/categories";
-import { countBooks, type Book, type BooksData, type CategoryId } from "@/lib/discovery/fetchBooks";
+import {
+  countBooks,
+  type Book,
+  type BookLanguage,
+  type BooksData,
+  type CategoryId,
+} from "@/lib/discovery/fetchBooks";
 
 export type TabId = "zh" | "en" | "intl";
 
@@ -74,8 +80,8 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
 
   const locale = useLocale();
   const tr = useT();
-  const [zhCategory, setZhCategory] = useState<CategoryId>("fiction");
-  const [enCategory, setEnCategory] = useState<CategoryId>("fiction");
+  // One category for every list; it carries over when switching language tabs.
+  const [category, setCategory] = useState<CategoryId>("fiction");
 
   const lastRefreshed = new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     month: "long",
@@ -113,137 +119,125 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
 
   const categoryLabel = (id: CategoryId) => CATEGORY_LABELS[id][locale];
 
-  function newList(language: "zh" | "en", category: CategoryId) {
-    const byCategory = language === "zh" ? booksData.zhNewByCategory : booksData.enNewByCategory;
-    const fiction = language === "zh" ? booksData.zhNewPublish : booksData.enNewPublish;
-    return category === "fiction" ? fiction : byCategory?.[category] ?? [];
+  type ListKind = "newPublish" | "week" | "month" | "year";
+
+  const FICTION_LISTS: Record<string, Partial<Record<ListKind, Book[]>>> = {
+    zh: {
+      newPublish: booksData.zhNewPublish,
+      week: booksData.zhBestSellerWeek,
+      month: booksData.zhBestSellerMonth,
+      year: booksData.zhBestSellerYear,
+    },
+    en: {
+      newPublish: booksData.enNewPublish,
+      week: booksData.enBestSellerWeek,
+      month: booksData.enBestSellerMonth,
+      year: booksData.enBestSellerYear,
+    },
+    fr: { year: booksData.frBestSellerYear },
+    es: { year: booksData.esBestSellerYear },
+    de: { year: booksData.deBestSellerYear },
+    ru: { year: booksData.ruBestSellerYear },
+  };
+
+  function list(language: BookLanguage, kind: ListKind, id: CategoryId = category): Book[] {
+    if (id === "fiction") return FICTION_LISTS[language]?.[kind] ?? [];
+    return booksData.byCategory?.[language]?.[id]?.[kind] ?? [];
   }
 
-  function categoryChips(language: "zh" | "en", active: CategoryId, choose: (id: CategoryId) => void) {
-    return (
-      <div className="category-chips" role="group" aria-label={tr("Categories", "分类")}>
-        {CATEGORY_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={active === id}
-            className={`category-chip${active === id ? " category-chip-active" : ""}`}
-            onClick={() => choose(id)}
-          >
-            {categoryLabel(id)}
-            <span className="category-chip-count">{newList(language, id).length}</span>
-          </button>
-        ))}
-      </div>
-    );
+  const LANGUAGES: Record<BookLanguage, { en: string; zh: string }> = {
+    zh: { en: "Chinese", zh: "中文" },
+    en: { en: "English", zh: "英文" },
+    fr: { en: "French", zh: "法语" },
+    es: { en: "Spanish", zh: "西班牙语" },
+    de: { en: "German", zh: "德语" },
+    ru: { en: "Russian", zh: "俄语" },
+  };
+
+  const KINDS: Record<ListKind, { en: string; zh: string; subtitleEn: string; subtitleZh: string }> = {
+    newPublish: {
+      en: "new releases",
+      zh: "新书",
+      subtitleEn: "Published in the last year, newest first.",
+      subtitleZh: "近一年出版，按出版日期从新到旧。",
+    },
+    week: {
+      en: "popular this week",
+      zh: "本周热门",
+      subtitleEn: "Books published in the last 7 days first, ranked by number of ratings.",
+      subtitleZh: "近 7 天出版的书优先，按评分人数排序。",
+    },
+    month: {
+      en: "popular this month",
+      zh: "本月热门",
+      subtitleEn: "The last 30 days, not repeated from the week list.",
+      subtitleZh: "近 30 天，不与本周榜重复。",
+    },
+    year: {
+      en: "popular this year",
+      zh: "年度热门",
+      subtitleEn: "The last year, not repeated from the shorter lists.",
+      subtitleZh: "近一年，不与周榜、月榜重复。",
+    },
+  };
+
+  function section(language: BookLanguage, kind: ListKind) {
+    const name = LANGUAGES[language];
+    const cat = CATEGORY_LABELS[category];
+    return {
+      id: `${language}-${kind === "newPublish" ? "new-publish" : `best-${kind}`}`,
+      eyebrow: tr(name.en, name.zh),
+      title: tr(
+        `${name.en} ${cat.en.toLowerCase()}: ${KINDS[kind].en}`,
+        `${name.zh}${cat.zh}·${KINDS[kind].zh}`
+      ),
+      subtitle:
+        YEAR_ONLY_LANGUAGES.includes(language)
+          ? tr("Popular books from the last year.", "近一年的热门书。")
+          : tr(KINDS[kind].subtitleEn, KINDS[kind].subtitleZh),
+      books: list(language, kind),
+      source:
+        kind === "newPublish"
+          ? tr("Source: Google Books", "来源：Google Books")
+          : tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
+    };
   }
 
-  const zhName = tr("Chinese", "中文");
-  const enName = tr("English", "英文");
+  const ALL_KINDS: ListKind[] = ["newPublish", "week", "month", "year"];
+  const YEAR_ONLY_LANGUAGES: BookLanguage[] = ["fr", "es", "de", "ru"];
 
-  const catalogSections: Array<{
-    id: string;
-    eyebrow: string;
-    title: string;
-    subtitle: string;
-    books: Book[];
-    toolbar?: ReactNode;
-    source: string;
-  }> = [
-    {
-      id: "zh-new-publish",
-      eyebrow: zhName,
-      title: tr(`New Chinese books: ${categoryLabel(zhCategory)}`, `中文新书·${categoryLabel(zhCategory)}`),
-      subtitle: tr(
-        "Published in the last year, newest first. Pick a category.",
-        "近一年出版，按出版日期从新到旧。点选分类查看。"
-      ),
-      books: newList("zh", zhCategory),
-      toolbar: categoryChips("zh", zhCategory, setZhCategory),
-      source: tr("Source: Google Books", "来源：Google Books"),
-    },
-    {
-      id: "zh-best-week",
-      eyebrow: zhName,
-      title: tr("Chinese fiction: popular this week", "中文小说·本周热门"),
-      subtitle: tr(
-        "Novels published in the last 7 days first, ranked by number of ratings.",
-        "近 7 天出版的小说优先，按评分人数排序。"
-      ),
-      books: booksData.zhBestSellerWeek,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    {
-      id: "zh-best-month",
-      eyebrow: zhName,
-      title: tr("Chinese fiction: popular this month", "中文小说·本月热门"),
-      subtitle: tr("The last 30 days, not repeated from the week list.", "近 30 天，不与本周榜重复。"),
-      books: booksData.zhBestSellerMonth,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    {
-      id: "zh-best-year",
-      eyebrow: zhName,
-      title: tr("Chinese fiction: popular this year", "中文小说·年度热门"),
-      subtitle: tr("The last year, not repeated from the shorter lists.", "近一年，不与周榜、月榜重复。"),
-      books: booksData.zhBestSellerYear,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    {
-      id: "en-new-publish",
-      eyebrow: enName,
-      title: tr(`New English books: ${categoryLabel(enCategory)}`, `英文新书·${categoryLabel(enCategory)}`),
-      subtitle: tr(
-        "Published in the last year, newest first. Pick a category.",
-        "近一年出版，按出版日期从新到旧。点选分类查看。"
-      ),
-      books: newList("en", enCategory),
-      toolbar: categoryChips("en", enCategory, setEnCategory),
-      source: tr("Source: Google Books", "来源：Google Books"),
-    },
-    {
-      id: "en-best-week",
-      eyebrow: enName,
-      title: tr("English fiction: popular this week", "英文小说·本周热门"),
-      subtitle: tr(
-        "Novels published in the last 7 days first, ranked by number of ratings.",
-        "近 7 天出版的小说优先，按评分人数排序。"
-      ),
-      books: booksData.enBestSellerWeek,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    {
-      id: "en-best-month",
-      eyebrow: enName,
-      title: tr("English fiction: popular this month", "英文小说·本月热门"),
-      subtitle: tr("The last 30 days, not repeated from the week list.", "近 30 天，不与本周榜重复。"),
-      books: booksData.enBestSellerMonth,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    {
-      id: "en-best-year",
-      eyebrow: enName,
-      title: tr("English fiction: popular this year", "英文小说·年度热门"),
-      subtitle: tr("The last year, not repeated from the shorter lists.", "近一年，不与周榜、月榜重复。"),
-      books: booksData.enBestSellerYear,
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    },
-    ...(
-      [
-        ["fr-best-year", "French", "法语", booksData.frBestSellerYear],
-        ["es-best-year", "Spanish", "西班牙语", booksData.esBestSellerYear],
-        ["de-best-year", "German", "德语", booksData.deBestSellerYear],
-        ["ru-best-year", "Russian", "俄语", booksData.ruBestSellerYear],
-      ] as const
-    ).map(([id, en, zh, books]) => ({
-      id,
-      eyebrow: tr(en, zh),
-      title: tr(`${en} fiction: popular this year`, `${zh}小说·年度热门`),
-      subtitle: tr("Popular novels from the last year.", "近一年的热门小说。"),
-      books: [...books],
-      source: tr("Source: Google Books / Open Library", "来源：Google Books / Open Library"),
-    })),
+  const catalogSections = [
+    ...ALL_KINDS.map((kind) => section("zh", kind)),
+    ...ALL_KINDS.map((kind) => section("en", kind)),
+    ...YEAR_ONLY_LANGUAGES.map((language) => section(language, "year")),
   ];
+
+  const TAB_LISTS: Record<TabId, [BookLanguage, ListKind][]> = {
+    zh: ALL_KINDS.map((kind) => ["zh", kind]),
+    en: ALL_KINDS.map((kind) => ["en", kind]),
+    intl: YEAR_ONLY_LANGUAGES.map((language) => [language, "year"]),
+  };
+
+  // Category buttons above the active tab's lists; the count is the number of
+  // books across that tab's lists.
+  const categoryChips = (
+    <div className="category-chips" role="group" aria-label={tr("Categories", "分类")}>
+      {CATEGORY_IDS.map((id) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={category === id}
+          className={`category-chip${category === id ? " category-chip-active" : ""}`}
+          onClick={() => setCategory(id)}
+        >
+          {categoryLabel(id)}
+          <span className="category-chip-count">
+            {TAB_LISTS[activeTab].reduce((total, [language, kind]) => total + list(language, kind, id).length, 0)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 
   const tabSections = {
     zh: catalogSections.slice(0, 4),
@@ -419,6 +413,8 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
                 </button>
               </section>
 
+              {categoryChips}
+
               {tabSections[activeTab].map((section) => (
                 <Section
                   key={section.id}
@@ -430,7 +426,6 @@ export default function DiscoveryHome({ data, signedIn, initialTab }: DiscoveryH
                   sourceLabel={section.source}
                   updatedAtLabel={listUpdatedAt}
                   signedIn={signedIn}
-                  toolbar={section.toolbar}
                   emptyMessage={sectionEmptyMessage}
                 />
               ))}
