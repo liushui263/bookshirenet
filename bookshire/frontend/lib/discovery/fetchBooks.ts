@@ -12,6 +12,8 @@ export interface Book {
   isbn?: string;
   pageCount?: number;
   description?: string;
+  // Number of Google Books ratings, used to rank the popular lists.
+  ratingsCount?: number;
 }
 
 export interface BooksData {
@@ -45,6 +47,8 @@ interface GoogleBooksVolume {
     description?: string;
     pageCount?: number;
     industryIdentifiers?: { type?: string; identifier?: string }[];
+    categories?: string[];
+    ratingsCount?: number;
   };
 }
 
@@ -245,12 +249,17 @@ function buildOpenLibrarySearchUrl(params: {
   language: BookLanguage;
   subject?: string;
   limit?: number;
-  sort?: "editions" | "new";
+  sort?: OpenLibrarySort;
+  sinceYear?: number;
 }) {
   const languageCode = getOpenLibraryLanguageCode(params.language);
-  const query = params.subject
-    ? `subject:${params.subject} language:${languageCode}`
-    : `language:${languageCode}`;
+  const query = [
+    params.subject ? `subject:${params.subject}` : "",
+    `language:${languageCode}`,
+    params.sinceYear ? `first_publish_year:[${params.sinceYear} TO *]` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const searchParams = new URLSearchParams({
     q: query,
@@ -435,7 +444,27 @@ function normalizeGoogleBook(
     ...(googleIsbn(info.industryIdentifiers) ? { isbn: googleIsbn(info.industryIdentifiers) } : {}),
     ...(info.pageCount ? { pageCount: info.pageCount } : {}),
     ...(info.description ? { description: shortDescription(info.description) } : {}),
+    ...(info.ratingsCount ? { ratingsCount: info.ratingsCount } : {}),
   };
+}
+
+// Categories that mark a volume as fiction. Google files Chinese novels under
+// the same English categories ("Fiction", "Juvenile Fiction", …).
+const FICTION_CATEGORY = /fiction|novel|小说|literary collections/i;
+
+// Books about books: publishing, bookselling, editing and writing guides match
+// "畅销"/"bestseller" queries but are not novels.
+const ABOUT_BOOKS =
+  /出版|编辑|书业|畅销书|营销|写作|期刊|年鉴|研究|理论|评论|鉴赏|文学史|小说史|教程|教材|publishing|publisher|bookselling|bestseller list|best-seller list|how to write|writing a novel|yearbook/i;
+
+function isFiction(item: GoogleBooksVolume): boolean {
+  const info = item.volumeInfo;
+  if (!info?.title) return false;
+  if (ABOUT_BOOKS.test(info.title)) return false;
+  const categories = info.categories ?? [];
+  // Uncategorised volumes are common for Chinese books; the subject:fiction
+  // query already narrowed them, so only reject an explicit non-fiction category.
+  return categories.length === 0 || categories.some((category) => FICTION_CATEGORY.test(category));
 }
 
 async function fetchGoogleBooks(params: {
@@ -458,15 +487,19 @@ async function fetchGoogleBooks(params: {
   });
 
   return (data?.items ?? [])
+    .filter(isFiction)
     .map((item) => cleanBook(normalizeGoogleBook(item, params.language)))
     .filter((item): item is Book => item !== null);
 }
+
+type OpenLibrarySort = "new" | "readinglog";
 
 async function fetchOpenLibraryBooks(params: {
   language: BookLanguage;
   subject?: string;
   limit?: number;
-  sort?: "editions" | "new";
+  sort?: OpenLibrarySort;
+  sinceYear?: number;
 }): Promise<Book[]> {
   const url = buildOpenLibrarySearchUrl(params);
   const data = await fetchJson<OpenLibrarySearchResponse>(url);
@@ -531,62 +564,121 @@ function dedupeBooks(books: Book[]) {
   });
 }
 
-async function fetchNewPublishBooks(language: BookLanguage, query: string) {
-  const books = await fetchGoogleBooks({
-    query,
-    language,
-    orderBy: "newest",
-    maxResults: 20,
-  });
-  return takeTop(dedupeBooks(books));
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Pre-orders up to three months out still count as new.
+const MAX_DAYS_AHEAD = 90;
+
+function ageInDays(book: Book, now: number): number | null {
+  const published = parsePublishedDate(book.publishedDate);
+  return published ? (now - published.getTime()) / DAY_MS : null;
 }
 
-async function fetchPopularPool(
-  language: BookLanguage,
-  query: string,
-  orderBy?: "newest"
-) {
-  const googlePool = await fetchGoogleBooks({
-    query,
-    language,
-    maxResults: 40,
-    orderBy,
-  });
+function publishedWithin(book: Book, maxDays: number, now: number) {
+  const age = ageInDays(book, now);
+  return age !== null && age >= -MAX_DAYS_AHEAD && age <= maxDays;
+}
 
+function newestFirst(a: Book, b: Book) {
+  return (
+    (parsePublishedDate(b.publishedDate)?.getTime() ?? 0) -
+    (parsePublishedDate(a.publishedDate)?.getTime() ?? 0)
+  );
+}
+
+// Google Books has no sales rank; the number of ratings is the best popularity
+// signal it returns. Ties go to the newer book.
+function mostRatedFirst(a: Book, b: Book) {
+  return (b.ratingsCount ?? 0) - (a.ratingsCount ?? 0) || newestFirst(a, b);
+}
+
+function mergePools(...pools: Book[][]) {
+  return dedupeBooks(pools.flat());
+}
+
+const NEW_WINDOW_DAYS = 365;
+const POPULAR_MAX_AGE_DAYS = 3 * 365;
+
+function sinceYear(days: number) {
+  return new Date(Date.now() - days * DAY_MS).getFullYear();
+}
+
+// The new list and the popular lists ask Google the same questions; share the
+// answers within one refresh to stay inside the daily quota.
+let googleRequests = new Map<string, Promise<Book[]>>();
+
+function fetchGoogleBooksOnce(params: Parameters<typeof fetchGoogleBooks>[0]) {
+  const key = JSON.stringify(params);
+  let request = googleRequests.get(key);
+  if (!request) {
+    request = fetchGoogleBooks(params);
+    googleRequests.set(key, request);
+  }
+  return request;
+}
+
+async function fetchFictionPool(language: BookLanguage, queries: string[], orderBy?: "newest") {
+  const pools = await Promise.all(
+    queries.map((query) => fetchGoogleBooksOnce({ query, language, maxResults: 40, orderBy }))
+  );
+  return mergePools(...pools);
+}
+
+/**
+ * The newest fiction published in the last year, newest first. Google's
+ * "newest" ordering still returns old titles, so the date window is enforced here.
+ */
+async function fetchNewPublishBooks(language: BookLanguage, queries: string[]) {
+  const now = Date.now();
+  let pool = (await fetchFictionPool(language, queries, "newest")).filter((book) =>
+    publishedWithin(book, NEW_WINDOW_DAYS, now)
+  );
+  if (pool.length < LIST_SIZE) {
+    const openLibrary = await fetchOpenLibraryBooks({
+      language,
+      subject: "fiction",
+      limit: 40,
+      sort: "new",
+      sinceYear: sinceYear(NEW_WINDOW_DAYS),
+    });
+    pool = mergePools(pool, openLibrary.filter((book) => publishedWithin(book, NEW_WINDOW_DAYS, now)));
+  }
+  return takeTop(pool.sort(newestFirst));
+}
+
+async function fetchPopularPool(language: BookLanguage, queries: string[], orderBy?: "newest") {
+  const googlePool = await fetchFictionPool(language, queries, orderBy);
   if (googlePool.length > 0) {
-    return dedupeBooks(googlePool);
+    return googlePool;
   }
 
-  // Fallback to Open Library if Google Books is exhausted/rate limited
+  // Fallback to Open Library if Google Books is exhausted/rate limited:
+  // recent fiction ordered by how many readers have shelved it.
   return dedupeBooks(
     await fetchOpenLibraryBooks({
       language,
       subject: "fiction",
       limit: 40,
-      sort: "new",
+      sort: orderBy === "newest" ? "new" : "readinglog",
+      sinceYear: sinceYear(POPULAR_MAX_AGE_DAYS),
     })
   );
 }
 
 /**
  * Builds a shelf from candidate books, skipping anything already shown on
- * another shelf. Prefers books inside the publish window and tops up with the
- * remaining candidates so a shelf is never empty while the pool has books.
+ * another shelf. Books published inside the window come first, most rated
+ * first; the shelf is topped up with other recent books, never with old ones.
  */
-function buildShelf(
-  candidates: Book[],
-  used: Set<string>,
-  maxAgeDays: number
-) {
+function buildShelf(candidates: Book[], used: Set<string>, maxAgeDays: number, topUpDays: number) {
   const now = Date.now();
-  const maxAge = maxAgeDays * 24 * 60 * 60 * 1000;
   const available = candidates.filter((book) => !used.has(bookKey(book)));
-  const inWindow = available.filter((book) => {
-    const publishedDate = parsePublishedDate(book.publishedDate);
-    return publishedDate !== null && now - publishedDate.getTime() <= maxAge;
-  });
-  const rest = available.filter((book) => !inWindow.includes(book));
-  const shelf = takeTop([...inWindow, ...rest]);
+  const inWindow = available
+    .filter((book) => publishedWithin(book, maxAgeDays, now))
+    .sort(mostRatedFirst);
+  const topUp = available
+    .filter((book) => !inWindow.includes(book) && publishedWithin(book, topUpDays, now))
+    .sort(mostRatedFirst);
+  const shelf = takeTop([...inWindow, ...topUp]);
 
   for (const book of shelf) {
     used.add(bookKey(book));
@@ -596,29 +688,37 @@ function buildShelf(
 }
 
 /**
- * Week, month and year shelves for one language. Two Google queries are
- * shared across all three shelves, and no book appears on more than one.
+ * Week, month and year shelves for one language, sharing two candidate pools
+ * so no book appears on more than one shelf.
  */
-async function fetchPopularShelves(language: BookLanguage, query: string) {
+async function fetchPopularShelves(language: BookLanguage, queries: string[]) {
   const [newestPool, relevancePool] = await Promise.all([
-    fetchPopularPool(language, query, "newest"),
-    fetchPopularPool(language, query),
+    fetchPopularPool(language, queries, "newest"),
+    fetchPopularPool(language, queries),
   ]);
+  const pool = mergePools(newestPool, relevancePool);
   const used = new Set<string>();
 
   return {
-    week: buildShelf(newestPool, used, 7),
-    month: buildShelf(newestPool, used, 30),
-    year: buildShelf(relevancePool, used, 365),
+    week: buildShelf(pool, used, 7, 90),
+    month: buildShelf(pool, used, 30, 180),
+    year: buildShelf(pool, used, 365, POPULAR_MAX_AGE_DAYS),
   };
 }
 
-async function fetchPopularYear(language: BookLanguage, query: string) {
-  const pool = await fetchPopularPool(language, query);
-  return buildShelf(pool, new Set(), 365);
+async function fetchPopularYear(language: BookLanguage, queries: string[]) {
+  const pool = await fetchPopularPool(language, queries);
+  return buildShelf(pool, new Set(), 365, POPULAR_MAX_AGE_DAYS);
 }
 
+// "subject:fiction" matches Google's Fiction category. Chinese volumes are
+// often uncategorised, so the Chinese lists also search the word 小说 (novel);
+// isFiction drops the books about novels that this brings in.
+const ZH_FICTION = ["subject:fiction", "小说"];
+const FICTION = ["subject:fiction"];
+
 export async function fetchBooks(): Promise<BooksData> {
+  googleRequests = new Map();
   const [
     zhNewPublish,
     zhPopular,
@@ -629,14 +729,14 @@ export async function fetchBooks(): Promise<BooksData> {
     deBestSellerYear,
     ruBestSellerYear,
   ] = await Promise.all([
-    fetchNewPublishBooks("zh", "小说"),
-    fetchPopularShelves("zh", "畅销 小说"),
-    fetchNewPublishBooks("en", "subject:fiction"),
-    fetchPopularShelves("en", "bestseller fiction"),
-    fetchPopularYear("fr", "bestseller fiction"),
-    fetchPopularYear("es", "bestseller fiction"),
-    fetchPopularYear("de", "bestseller fiction"),
-    fetchPopularYear("ru", "bestseller fiction"),
+    fetchNewPublishBooks("zh", ZH_FICTION),
+    fetchPopularShelves("zh", ZH_FICTION),
+    fetchNewPublishBooks("en", FICTION),
+    fetchPopularShelves("en", FICTION),
+    fetchPopularYear("fr", FICTION),
+    fetchPopularYear("es", FICTION),
+    fetchPopularYear("de", FICTION),
+    fetchPopularYear("ru", FICTION),
   ]);
 
   return {
