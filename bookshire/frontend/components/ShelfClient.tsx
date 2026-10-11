@@ -6,6 +6,7 @@ import type { ReadingStatus, UserBook } from "@/lib/api";
 import { listMyBooksFromBrowser, removeMyBook, updateMyBookStatus } from "@/lib/api";
 import { BookDetailsEditor, CONDITION_LABELS } from "@/components/BookDetailsEditor";
 import { ShelfTools } from "@/components/ShelfTools";
+import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
 
 type ShelfStatus =
   | "unread"
@@ -46,26 +47,34 @@ function toApiStatus(status: ShelfStatus): ReadingStatus {
   return status as ReadingStatus;
 }
 
+function toSpineItem(item: UserBook): SpineItem {
+  const extraFacts: [string, string][] = [
+    ["Condition", (item.condition && CONDITION_LABELS[item.condition]) || "Not set"],
+    ["Who can see it", `${item.visibility === "public" ? "Everyone" : "Only me"}${item.exchangeable ? " · open to swap" : ""}`],
+  ];
+  if (item.location_text) extraFacts.push(["Where", item.location_text]);
+  if (item.started_at) extraFacts.push(["Started", item.started_at]);
+  if (item.finished_at) extraFacts.push(["Finished", item.finished_at]);
+  return {
+    id: item.id,
+    title: item.book_title,
+    authors: item.book_authors ?? [],
+    cover: item.book_cover_url || item.edition_cover_url || null,
+    publisher: item.edition_publisher,
+    published: item.edition_publication_year ? String(item.edition_publication_year) : null,
+    isbn: item.edition_isbn_13 || item.edition_isbn_10,
+    pages: item.edition_page_count,
+    description: item.personal_notes_summary
+      ? `My notes: ${item.personal_notes_summary}`
+      : item.book_description,
+    extraFacts,
+    link: { href: `/books/${item.book_id}`, label: "Book page and reviews →" },
+  };
+}
+
 type ShelfClientProps = {
   initialItems: UserBook[];
 };
-
-function formatDate(value?: string | null) {
-  if (!value) return "Unknown";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
-}
 
 export function ShelfClient({ initialItems }: ShelfClientProps) {
   const [items, setItems] = useState<UserBook[]>(initialItems);
@@ -204,188 +213,82 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                   No books in this section.
                 </div>
               ) : (
-                <div className="grid gap-5 md:grid-cols-2">
-                  {grouped[status].map((item) => {
+                <SpineShelf
+                  items={grouped[status].map(toSpineItem)}
+                  label={STATUS_LABELS[status]}
+                  perRow={14}
+                  renderActions={(spine) => {
+                    const item = items.find((entry) => entry.id === spine.id);
+                    if (!item) return null;
                     const isBusy = busyKey?.startsWith(item.id);
-                    const tags = [
-                      ...(item.book_tags || []),
-                      ...(item.book_categories || []),
-                    ];
-                    const coverUrl =
-                      item.book_cover_url || item.edition_cover_url || null;
-
                     return (
-                      <article
-                        key={item.id}
-                        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-                      >
-                        <div className="flex gap-4">
-                          <Link
-                            href={`/books/${item.book_id}`}
-                            className="flex h-28 w-20 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-400"
-                          >
-                            {coverUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={coverUrl}
-                                alt={item.book_title}
-                                className="h-full w-full rounded-xl object-cover"
-                              />
-                            ) : (
-                              <span>Cover</span>
-                            )}
-                          </Link>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <Link
-                                  href={`/books/${item.book_id}`}
-                                  className="line-clamp-2 text-lg font-semibold text-gray-950 hover:underline"
-                                >
-                                  {item.book_title}
-                                </Link>
-
-                                {item.book_subtitle && (
-                                  <p className="mt-1 line-clamp-2 text-sm text-gray-500">
-                                    {item.book_subtitle}
-                                  </p>
-                                )}
-
-                                {item.edition_language && item.edition_language !== "unknown" && (
-                                  <p className="mt-2 text-xs text-gray-500">
-                                    Edition language: {item.edition_language}
-                                  </p>
-                                )}
-                              </div>
-
-                              <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">
-                                {STATUS_LABELS[normalizeStatus(item.status)]}
+                      <div className="w-full">
+                        {item.personal_tags.length > 0 && (
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            {item.personal_tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-gray-950 px-2.5 py-1 text-xs text-white"
+                              >
+                                {tag}
                               </span>
-                            </div>
-
-                            {tags.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {Array.from(new Set(tags)).slice(0, 5).map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                              <div>
-                                <dt className="font-semibold text-gray-900">
-                                  Condition
-                                </dt>
-                                <dd className="mt-1 text-gray-600">
-                                  {(item.condition && CONDITION_LABELS[item.condition]) || "Not set"}
-                                </dd>
-                              </div>
-
-                              <div>
-                                <dt className="font-semibold text-gray-900">
-                                  Visibility
-                                </dt>
-                                <dd className="mt-1 text-gray-600">
-                                  {item.visibility === "public" ? "Everyone" : "Only me"}
-                                  {item.exchangeable ? " · open to swap" : ""}
-                                </dd>
-                              </div>
-
-                              <div>
-                                <dt className="font-semibold text-gray-900">
-                                  {item.location_text ? "Where" : "Updated"}
-                                </dt>
-                                <dd className="mt-1 line-clamp-2 text-gray-600">
-                                  {item.location_text || formatDate(item.updated_at)}
-                                </dd>
-                              </div>
-
-                              <div>
-                                <dt className="font-semibold text-gray-900">
-                                  Notes
-                                </dt>
-                                <dd className="mt-1 line-clamp-2 text-gray-600">
-                                  {item.personal_notes_summary || "No notes"}
-                                </dd>
-                              </div>
-                            </dl>
-
-                            {item.personal_tags.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {item.personal_tags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="rounded-full bg-gray-950 px-2.5 py-1 text-xs text-white"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            <div className="mt-5 flex flex-wrap gap-2">
-                              <select
-                                value={normalizeStatus(item.status)}
-                                disabled={isBusy}
-                                onChange={(event) =>
-                                  handleStatusChange(
-                                    item,
-                                    event.target.value as ShelfStatus
-                                  )
-                                }
-                                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
-                              >
-                                {STATUS_ORDER.map((option) => (
-                                  <option key={option} value={option}>
-                                    {STATUS_LABELS[option]}
-                                  </option>
-                                ))}
-                              </select>
-
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                aria-expanded={editingId === item.id}
-                                onClick={() =>
-                                  setEditingId((current) => (current === item.id ? null : item.id))
-                                }
-                                className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
-                              >
-                                Edit details
-                              </button>
-
-                              <button
-                                disabled={isBusy}
-                                onClick={() => handleRemove(item)}
-                                className="rounded-full border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                              >
-                                Remove
-                              </button>
-                            </div>
-
-                            {editingId === item.id && (
-                              <BookDetailsEditor
-                                item={item}
-                                onCancel={() => setEditingId(null)}
-                                onSaved={(updated) => {
-                                  upsertItem(updated);
-                                  setEditingId(null);
-                                  setMessage(`Saved "${updated.book_title}".`);
-                                }}
-                              />
-                            )}
+                            ))}
                           </div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <label className="sr-only" htmlFor={`status-${item.id}`}>
+                            Reading status
+                          </label>
+                          <select
+                            id={`status-${item.id}`}
+                            value={normalizeStatus(item.status)}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              handleStatusChange(item, event.target.value as ShelfStatus)
+                            }
+                            className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                          >
+                            {STATUS_ORDER.map((option) => (
+                              <option key={option} value={option}>
+                                {STATUS_LABELS[option]}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            aria-expanded={editingId === item.id}
+                            onClick={() =>
+                              setEditingId((current) => (current === item.id ? null : item.id))
+                            }
+                            className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            Edit details
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleRemove(item)}
+                            className="rounded-full border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
                         </div>
-                      </article>
+                        {editingId === item.id && (
+                          <BookDetailsEditor
+                            item={item}
+                            onCancel={() => setEditingId(null)}
+                            onSaved={(updated) => {
+                              upsertItem(updated);
+                              setEditingId(null);
+                              setMessage(`Saved "${updated.book_title}".`);
+                            }}
+                          />
+                        )}
+                      </div>
                     );
-                  })}
-                </div>
+                  }}
+                />
               )}
             </section>
           ))}

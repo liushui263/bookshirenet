@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookCard } from "@/components/BookCard";
+import { CatalogShelf } from "@/components/spines/CatalogShelf";
 import { getBooks, type Book } from "@/lib/api";
 
 export default async function CatalogPage() {
@@ -84,10 +84,8 @@ export default async function CatalogPage() {
               </p>
             </div>
           ) : (
-            <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {books.map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
+            <div className="mt-8">
+              <CatalogShelf books={books} label="Catalog" />
             </div>
           )}
         </section>

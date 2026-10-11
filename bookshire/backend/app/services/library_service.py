@@ -209,7 +209,7 @@ def add_by_isbn(db: Session, user_id: UUID, raw_isbn: str):
 # ---------------------------------------------------------------- export
 
 
-def _authors_by_book(db: Session, book_ids: list[UUID]) -> dict[UUID, list[str]]:
+def authors_by_book(db: Session, book_ids: list[UUID]) -> dict[UUID, list[str]]:
     if not book_ids:
         return {}
     rows = db.execute(
@@ -239,7 +239,7 @@ def export_rows(db: Session, user_id: UUID) -> list[dict]:
         .order_by(UserBook.created_at.asc())
         .all()
     )
-    authors = _authors_by_book(db, list({book.id for _, _, book in rows}))
+    authors = authors_by_book(db, list({book.id for _, _, book in rows}))
     out = []
     for user_book, edition, book in rows:
         out.append(
