@@ -1,6 +1,9 @@
 import { FALLBACK_COVER, type Book } from "@/lib/discovery/fetchBooks";
 import { AddDiscoveryBookButton } from "@/components/discovery/AddDiscoveryBookButton";
-import { SpineShelf, type ShelfLocale, type SpineItem } from "@/components/spines/SpineShelf";
+import type { ReactNode } from "react";
+import { useLocale } from "@/components/LocaleProvider";
+import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
+import type { Locale } from "@/lib/i18n";
 
 const LANGUAGE_NAMES: Record<Book["language"], string> = {
   zh: "中文",
@@ -11,7 +14,7 @@ const LANGUAGE_NAMES: Record<Book["language"], string> = {
   ru: "Русский",
 };
 
-function toSpineItem(book: Book, locale: ShelfLocale): SpineItem {
+function toSpineItem(book: Book, locale: Locale): SpineItem {
   return {
     id: book.id,
     title: book.title,
@@ -44,7 +47,8 @@ interface SectionProps {
   sourceLabel?: string;
   updatedAtLabel?: string;
   emptyMessage?: string;
-  locale?: ShelfLocale;
+  // Controls shown under the heading, e.g. category buttons.
+  toolbar?: ReactNode;
 }
 
 export default function Section({
@@ -58,8 +62,9 @@ export default function Section({
   sourceLabel,
   updatedAtLabel,
   emptyMessage,
-  locale = "en",
+  toolbar,
 }: SectionProps) {
+  const locale = useLocale();
   const sectionLabelId = id ? `${id}-title` : undefined;
   const showSkeleton = isRefreshing && books.length === 0;
 
@@ -90,6 +95,7 @@ export default function Section({
           </div>
         </div>
       </div>
+      {toolbar}
       {showSkeleton ? (
         <div className="grid">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -107,10 +113,9 @@ export default function Section({
         <SpineShelf
           items={books.map((book) => toSpineItem(book, locale))}
           label={title}
-          locale={locale}
           renderActions={(item) => {
             const book = books.find((entry) => entry.id === item.id);
-            return book ? <AddDiscoveryBookButton key={book.id} book={book} signedIn={signedIn} locale={locale} /> : null;
+            return book ? <AddDiscoveryBookButton key={book.id} book={book} signedIn={signedIn} /> : null;
           }}
         />
       ) : (

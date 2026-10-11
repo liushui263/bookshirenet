@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLocale } from "@/components/LocaleProvider";
 import type { Book } from "@/lib/discovery/fetchBooks";
 
 type Props = {
   book: Book;
   signedIn: boolean;
-  locale?: "en" | "zh";
 };
 
 const TEXT = {
@@ -24,7 +24,8 @@ function sourceOf(book: Book) {
     : { source: "google_books", external_id: book.id };
 }
 
-export function AddDiscoveryBookButton({ book, signedIn, locale = "en" }: Props) {
+export function AddDiscoveryBookButton({ book, signedIn }: Props) {
+  const locale = useLocale();
   const [state, setState] = useState<State>("idle");
   const text = TEXT[locale];
 

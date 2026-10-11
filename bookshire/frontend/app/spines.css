@@ -279,3 +279,16 @@
 .spine-board + .spine-board {
   margin-top: 22px;
 }
+
+.spine-review-links {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: #7a6a58;
+}
+
+.spine-review-links a {
+  color: #355847;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

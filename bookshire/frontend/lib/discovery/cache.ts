@@ -4,7 +4,7 @@ import { countBooks, fetchBooks, type BooksData } from "@/lib/discovery/fetchBoo
 export const DISCOVERY_CACHE_TAG = "discovery-books";
 const ONE_DAY_SECONDS = 60 * 60 * 24;
 
-// One refresh costs about a dozen Google Books queries, so the shelves are
+// One refresh costs about thirty Google Books queries, so the shelves are
 // fetched at most once a day and shared by every visitor. An empty result
 // throws so the previous day's shelves stay in the cache instead.
 const getCachedBooks = unstable_cache(
@@ -15,16 +15,18 @@ const getCachedBooks = unstable_cache(
     }
     return data;
   },
-  ["discovery-books-v4"],
+  ["discovery-books-v5"],
   { revalidate: ONE_DAY_SECONDS, tags: [DISCOVERY_CACHE_TAG] }
 );
 
 const EMPTY: Omit<BooksData, "updatedAt"> = {
   zhNewPublish: [],
+  zhNewByCategory: {},
   zhBestSellerWeek: [],
   zhBestSellerMonth: [],
   zhBestSellerYear: [],
   enNewPublish: [],
+  enNewByCategory: {},
   enBestSellerWeek: [],
   enBestSellerMonth: [],
   enBestSellerYear: [],

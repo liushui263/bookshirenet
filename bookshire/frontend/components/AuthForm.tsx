@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/components/LocaleProvider";
 
 type AuthFormProps = {
   mode: "login" | "register";
@@ -18,6 +19,7 @@ function describeError(body: unknown, fallback: string) {
 
 export function AuthForm({ mode, next }: AuthFormProps) {
   const router = useRouter();
+  const tr = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -45,7 +47,9 @@ export function AuthForm({ mode, next }: AuthFormProps) {
 
       if (!res.ok) {
         setError(
-          describeError(body, isRegister ? "Could not create your account." : "Could not sign you in.")
+          describeError(body, isRegister
+              ? tr("Could not create your account.", "无法创建账号。")
+              : tr("Could not sign you in.", "无法登录。"))
         );
         return;
       }
@@ -53,7 +57,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
       router.push(next);
       router.refresh();
     } catch {
-      setError("Network error. Please try again.");
+      setError(tr("Network error. Please try again.", "网络错误，请重试。"));
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +72,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
     >
       {isRegister && (
         <label className="block">
-          <span className="text-sm font-semibold text-gray-900">Name</span>
+          <span className="text-sm font-semibold text-gray-900">{tr("Name", "昵称")}</span>
           <input
             type="text"
             required
@@ -82,7 +86,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
       )}
 
       <label className="block">
-        <span className="text-sm font-semibold text-gray-900">Email</span>
+        <span className="text-sm font-semibold text-gray-900">{tr("Email", "邮箱")}</span>
         <input
           type="email"
           required
@@ -94,7 +98,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
       </label>
 
       <label className="block">
-        <span className="text-sm font-semibold text-gray-900">Password</span>
+        <span className="text-sm font-semibold text-gray-900">{tr("Password", "密码")}</span>
         <input
           type="password"
           required
@@ -105,7 +109,7 @@ export function AuthForm({ mode, next }: AuthFormProps) {
           className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-950 outline-none focus:border-gray-950"
         />
         {isRegister && (
-          <span className="mt-1 block text-xs text-gray-500">At least 8 characters.</span>
+          <span className="mt-1 block text-xs text-gray-500">{tr("At least 8 characters.", "至少 8 个字符。")}</span>
         )}
       </label>
 
@@ -120,13 +124,19 @@ export function AuthForm({ mode, next }: AuthFormProps) {
         disabled={isLoading}
         className="w-full rounded-full bg-gray-950 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
       >
-        {isLoading ? "Please wait..." : isRegister ? "Create account" : "Sign in"}
+        {isLoading
+          ? tr("Please wait...", "请稍候…")
+          : isRegister
+            ? tr("Create account", "创建账号")
+            : tr("Sign in", "登录")}
       </button>
 
       <p className="text-center text-sm text-gray-600">
-        {isRegister ? "Already have an account?" : "New to BookShire?"}{" "}
+        {isRegister
+          ? tr("Already have an account?", "已有账号？")
+          : tr("New to BookShire?", "初次来到布客舍书坊？")}{" "}
         <Link href={otherHref} className="font-semibold text-gray-950 underline underline-offset-4">
-          {isRegister ? "Sign in" : "Create an account"}
+          {isRegister ? tr("Sign in", "登录") : tr("Create an account", "注册账号")}
         </Link>
       </p>
     </form>

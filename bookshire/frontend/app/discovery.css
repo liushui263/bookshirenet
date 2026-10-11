@@ -1023,3 +1023,70 @@ body {
   background: var(--accent);
   color: #fff;
 }
+
+.discovery .category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.discovery .category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.discovery .category-chip:hover {
+  color: var(--accent);
+  border-color: rgba(53, 88, 71, 0.3);
+}
+
+.discovery .category-chip-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: transparent;
+}
+
+.discovery .category-chip-count {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.discovery .lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-right: 4px;
+}
+
+.discovery .lang-switch button {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.discovery .lang-switch button.lang-active {
+  color: #fff;
+  background: var(--accent);
+}
+
+/* Chinese headlines read heavy at the Latin display size. */
+html[lang^="zh"] .discovery .hero h1 {
+  max-width: 16em;
+  font-size: clamp(2.2rem, 4.2vw, 3.6rem);
+  line-height: 1.2;
+}
