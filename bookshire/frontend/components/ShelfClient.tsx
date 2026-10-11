@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ReadingStatus, UserBook } from "@/lib/api";
 import { listMyBooksFromBrowser, removeMyBook, updateMyBookStatus } from "@/lib/api";
-import { BookDetailsEditor, CONDITION_LABELS } from "@/components/BookDetailsEditor";
+import { BookDetailsEditor, conditionLabels } from "@/components/BookDetailsEditor";
+import { useT } from "@/components/LocaleProvider";
+import type { Translate } from "@/lib/i18n";
 import { ShelfTools } from "@/components/ShelfTools";
 import { SpineShelf, type SpineItem } from "@/components/spines/SpineShelf";
 
@@ -16,14 +18,16 @@ type ShelfStatus =
   | "finished"
   | "abandoned";
 
-const STATUS_LABELS: Record<ShelfStatus, string> = {
-  unread: "Want to Read",
-  want_to_read: "Want to Read",
-  reading: "Reading",
-  read: "Finished",
-  finished: "Finished",
-  abandoned: "Abandoned",
-};
+function statusLabels(tr: Translate): Record<ShelfStatus, string> {
+  return {
+    unread: tr("Want to Read", "想读"),
+    want_to_read: tr("Want to Read", "想读"),
+    reading: tr("Reading", "在读"),
+    read: tr("Finished", "读过"),
+    finished: tr("Finished", "读过"),
+    abandoned: tr("Abandoned", "弃读"),
+  };
+}
 
 const STATUS_ORDER: ShelfStatus[] = [
   "unread",
@@ -47,14 +51,20 @@ function toApiStatus(status: ShelfStatus): ReadingStatus {
   return status as ReadingStatus;
 }
 
-function toSpineItem(item: UserBook): SpineItem {
+function toSpineItem(item: UserBook, tr: Translate): SpineItem {
+  const conditions = conditionLabels(tr);
   const extraFacts: [string, string][] = [
-    ["Condition", (item.condition && CONDITION_LABELS[item.condition]) || "Not set"],
-    ["Who can see it", `${item.visibility === "public" ? "Everyone" : "Only me"}${item.exchangeable ? " · open to swap" : ""}`],
+    [tr("Condition", "品相"), (item.condition && conditions[item.condition]) || tr("Not set", "未设置")],
+    [
+      tr("Who can see it", "谁能看到"),
+      `${item.visibility === "public" ? tr("Everyone", "所有人") : tr("Only me", "仅自己")}${
+        item.exchangeable ? tr(" · open to swap", " · 可交换") : ""
+      }`,
+    ],
   ];
-  if (item.location_text) extraFacts.push(["Where", item.location_text]);
-  if (item.started_at) extraFacts.push(["Started", item.started_at]);
-  if (item.finished_at) extraFacts.push(["Finished", item.finished_at]);
+  if (item.location_text) extraFacts.push([tr("Where", "位置"), item.location_text]);
+  if (item.started_at) extraFacts.push([tr("Started", "开始阅读"), item.started_at]);
+  if (item.finished_at) extraFacts.push([tr("Finished", "读完"), item.finished_at]);
   return {
     id: item.id,
     title: item.book_title,
@@ -65,10 +75,10 @@ function toSpineItem(item: UserBook): SpineItem {
     isbn: item.edition_isbn_13 || item.edition_isbn_10,
     pages: item.edition_page_count,
     description: item.personal_notes_summary
-      ? `My notes: ${item.personal_notes_summary}`
+      ? tr(`My notes: ${item.personal_notes_summary}`, `我的笔记：${item.personal_notes_summary}`)
       : item.book_description,
     extraFacts,
-    link: { href: `/books/${item.book_id}`, label: "Book page and reviews →" },
+    link: { href: `/books/${item.book_id}`, label: tr("Book page and reviews →", "图书页与书评 →") },
   };
 }
 
@@ -77,6 +87,8 @@ type ShelfClientProps = {
 };
 
 export function ShelfClient({ initialItems }: ShelfClientProps) {
+  const tr = useT();
+  const STATUS_LABELS = statusLabels(tr);
   const [items, setItems] = useState<UserBook[]>(initialItems);
   const [message, setMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -131,12 +143,17 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
         )
       );
 
-      setMessage(`Updated "${item.book_title}" to ${STATUS_LABELS[status]}.`);
+      setMessage(
+        tr(
+          `Updated "${item.book_title}" to ${STATUS_LABELS[status]}.`,
+          `已将《${item.book_title}》标记为${STATUS_LABELS[status]}。`,
+        ),
+      );
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
-          : "Failed to update reading status."
+          : tr("Failed to update reading status.", "阅读状态更新失败。")
       );
     } finally {
       setBusyKey(null);
@@ -157,10 +174,10 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
         current.filter((entry) => entry.id !== userBookId)
       );
 
-      setMessage(`Removed "${item.book_title}" from your shelf.`);
+      setMessage(tr(`Removed "${item.book_title}" from your shelf.`, `已从书架移除《${item.book_title}》。`));
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Failed to remove shelf item."
+        error instanceof Error ? error.message : tr("Failed to remove shelf item.", "移除失败。")
       );
     } finally {
       setBusyKey(null);
@@ -183,16 +200,19 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
       {items.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center">
           <h2 className="text-xl font-bold text-gray-950">
-            Your shelf is empty.
+            {tr("Your shelf is empty.", "你的书架还是空的。")}
           </h2>
           <p className="mt-2 text-gray-600">
-            Add a book by ISBN above, import a file, or pick books from the home page.
+            {tr(
+              "Add a book by ISBN above, import a file, or pick books from the home page.",
+              "可以在上方按 ISBN 添加、导入文件，或从首页挑选图书。",
+            )}
           </p>
           <Link
             href="/"
             className="mt-6 inline-flex rounded-full bg-gray-950 px-5 py-3 text-sm font-semibold text-white hover:bg-gray-800"
           >
-            Browse Books
+            {tr("Browse Books", "浏览图书")}
           </Link>
         </div>
       ) : (
@@ -210,11 +230,11 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
 
               {grouped[status].length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
-                  No books in this section.
+                  {tr("No books in this section.", "这一栏还没有书。")}
                 </div>
               ) : (
                 <SpineShelf
-                  items={grouped[status].map(toSpineItem)}
+                  items={grouped[status].map((entry) => toSpineItem(entry, tr))}
                   label={STATUS_LABELS[status]}
                   perRow={14}
                   renderActions={(spine) => {
@@ -237,7 +257,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                         )}
                         <div className="flex flex-wrap gap-2">
                           <label className="sr-only" htmlFor={`status-${item.id}`}>
-                            Reading status
+                            {tr("Reading status", "阅读状态")}
                           </label>
                           <select
                             id={`status-${item.id}`}
@@ -263,7 +283,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                             }
                             className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
                           >
-                            Edit details
+                            {tr("Edit details", "编辑详情")}
                           </button>
                           <button
                             type="button"
@@ -271,7 +291,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                             onClick={() => handleRemove(item)}
                             className="rounded-full border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                           >
-                            Remove
+                            {tr("Remove", "移除")}
                           </button>
                         </div>
                         {editingId === item.id && (
@@ -281,7 +301,7 @@ export function ShelfClient({ initialItems }: ShelfClientProps) {
                             onSaved={(updated) => {
                               upsertItem(updated);
                               setEditingId(null);
-                              setMessage(`Saved "${updated.book_title}".`);
+                              setMessage(tr(`Saved "${updated.book_title}".`, `已保存《${updated.book_title}》。`));
                             }}
                           />
                         )}

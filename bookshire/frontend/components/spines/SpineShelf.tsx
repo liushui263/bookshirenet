@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { useLocale } from "@/components/LocaleProvider";
+import type { Locale } from "@/lib/i18n";
 
 // A book as the spine shelf needs it; discovery books and catalog books both map to this.
 export type SpineItem = {
@@ -26,13 +28,9 @@ type SpineShelfProps = {
   // Books per shelf board; longer lists stack into a bookcase and the
   // detail panel opens under the board holding the active book.
   perRow?: number;
-  // Language of the panel's own labels (Author, Publisher, …).
-  locale?: ShelfLocale;
 };
 
-export type ShelfLocale = "en" | "zh";
-
-const FACT_LABELS: Record<ShelfLocale, Record<"author" | "publisher" | "published" | "isbn" | "pages", string>> = {
+const FACT_LABELS: Record<Locale, Record<"author" | "publisher" | "published" | "isbn" | "pages", string>> = {
   en: { author: "Author", publisher: "Publisher", published: "Published", isbn: "ISBN", pages: "Pages" },
   zh: { author: "作者", publisher: "出版社", published: "出版时间", isbn: "ISBN", pages: "页数" },
 };
@@ -129,7 +127,17 @@ function yearOf(published?: string | null) {
   return published?.match(/\d{4}/)?.[0] ?? null;
 }
 
-export function SpineShelf({ items, label, renderActions, perRow, locale = "en" }: SpineShelfProps) {
+// Where readers review books: searched by ISBN when there is one, else by title and author.
+function reviewLinks(item: SpineItem, locale: Locale) {
+  const query = encodeURIComponent(item.isbn || [item.title, item.authors[0]].filter(Boolean).join(" "));
+  return [
+    { label: locale === "zh" ? "豆瓣" : "Douban", href: `https://search.douban.com/book/subject_search?search_text=${query}` },
+    { label: "Goodreads", href: `https://www.goodreads.com/search?q=${query}` },
+  ];
+}
+
+export function SpineShelf({ items, label, renderActions, perRow }: SpineShelfProps) {
+  const locale = useLocale();
   const [activeId, setActiveId] = useState(items[0]?.id ?? null);
   const panelId = useId();
   const active = items.find((item) => item.id === activeId) ?? items[0];
@@ -189,6 +197,17 @@ export function SpineShelf({ items, label, renderActions, perRow, locale = "en" 
           ) : null}
           {renderActions?.(active)}
         </div>
+        <p className="spine-review-links">
+          {locale === "zh" ? "看书评：" : "Reviews on "}
+          {reviewLinks(active, locale).map((link, index) => (
+            <span key={link.label}>
+              {index > 0 ? " · " : null}
+              <a href={link.href} target="_blank" rel="noreferrer">
+                {link.label}
+              </a>
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );

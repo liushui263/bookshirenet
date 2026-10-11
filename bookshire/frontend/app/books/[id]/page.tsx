@@ -2,6 +2,8 @@ import { AddToShelfButton } from "@/components/AddToShelfButton";
 import Link from "next/link";
 import { getBook, getBookReviews } from "@/lib/api";
 import type { Book, Review } from "@/lib/api";
+import { getLocale } from "@/lib/i18n-server";
+import { translator, type Locale, type Translate } from "@/lib/i18n";
 import { getCurrentUser } from "@/lib/session";
 
 type BookDetailPageProps = {
@@ -10,13 +12,13 @@ type BookDetailPageProps = {
   }>;
 };
 
-function formatDate(value?: string | null) {
-  if (!value) return "Unknown";
+function formatDate(locale: Locale, tr: Translate, value?: string | null) {
+  if (!value) return tr("Unknown", "未知");
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -25,6 +27,9 @@ function formatDate(value?: string | null) {
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const { id } = await params;
+  const locale = await getLocale();
+  const tr = translator(locale);
+  const unknown = tr("Unknown", "未知");
 
   let book: Book | null = null;
   let reviews: Review[] = [];
@@ -40,7 +45,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     reviews = reviewData;
   } catch (error) {
     errorMessage =
-      error instanceof Error ? error.message : "Failed to load book detail";
+      error instanceof Error ? error.message : tr("Failed to load book detail", "图书详情加载失败");
   }
 
   if (errorMessage || !book) {
@@ -51,12 +56,12 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             href="/"
             className="text-sm font-semibold text-gray-600 hover:text-gray-950"
           >
-            ← Back to Home
+            {tr("← Back to Home", "← 返回首页")}
           </Link>
 
           <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-8">
             <h1 className="text-2xl font-bold text-red-900">
-              Failed to load book detail
+              {tr("Failed to load book detail", "图书详情加载失败")}
             </h1>
             <p className="mt-3 font-mono text-sm text-red-700">
               {errorMessage}
@@ -80,14 +85,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             href="/"
             className="text-sm font-semibold text-gray-600 hover:text-gray-950"
           >
-            ← Back to Home
+            {tr("← Back to Home", "← 返回首页")}
           </Link>
 
           <Link
             href="/search"
             className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
           >
-            Search Books
+            {tr("Search Books", "搜索图书")}
           </Link>
         </div>
 
@@ -102,13 +107,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   className="h-full w-full rounded-2xl object-cover"
                 />
               ) : (
-                <span>Cover</span>
+                <span>{tr("Cover", "封面")}</span>
               )}
             </div>
 
             <div>
               <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
-                Book Detail
+                {tr("Book Detail", "图书详情")}
               </p>
 
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-gray-950">
@@ -121,24 +126,24 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-gray-600">
                 <span className="rounded-full bg-gray-100 px-3 py-1">
-                  ⭐ {book.rating_avg ?? "N/A"}
+                  ⭐ {book.rating_avg ?? tr("N/A", "暂无")}
                 </span>
 
                 {book.rating_count != null && (
                   <span className="rounded-full bg-gray-100 px-3 py-1">
-                    {book.rating_count} ratings
+                    {tr(`${book.rating_count} ratings`, `${book.rating_count} 人评分`)}
                   </span>
                 )}
 
                 {book.original_language && (
                   <span className="rounded-full bg-gray-100 px-3 py-1">
-                    Language: {book.original_language}
+                    {tr("Language:", "语言：")} {book.original_language}
                   </span>
                 )}
 
                 {book.page_count != null && (
                   <span className="rounded-full bg-gray-100 px-3 py-1">
-                    {book.page_count} pages
+                    {tr(`${book.page_count} pages`, `${book.page_count} 页`)}
                   </span>
                 )}
               </div>
@@ -158,30 +163,30 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
               <dl className="mt-6 grid gap-4 text-sm md:grid-cols-2">
                 <div>
-                  <dt className="font-semibold text-gray-900">Publisher</dt>
+                  <dt className="font-semibold text-gray-900">{tr("Publisher", "出版社")}</dt>
                   <dd className="mt-1 text-gray-600">
-                    {book.publisher || "Unknown"}
+                    {book.publisher || unknown}
                   </dd>
                 </div>
 
                 <div>
-                  <dt className="font-semibold text-gray-900">Published</dt>
+                  <dt className="font-semibold text-gray-900">{tr("Published", "出版日期")}</dt>
                   <dd className="mt-1 text-gray-600">
-                    {book.published_date || "Unknown"}
+                    {book.published_date || unknown}
                   </dd>
                 </div>
 
                 <div>
                   <dt className="font-semibold text-gray-900">ISBN-10</dt>
                   <dd className="mt-1 text-gray-600">
-                    {book.isbn_10 || "Unknown"}
+                    {book.isbn_10 || unknown}
                   </dd>
                 </div>
 
                 <div>
                   <dt className="font-semibold text-gray-900">ISBN-13</dt>
                   <dd className="mt-1 text-gray-600">
-                    {book.isbn_13 || "Unknown"}
+                    {book.isbn_13 || unknown}
                   </dd>
                 </div>
               </dl>
@@ -193,21 +198,21 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   href="/shelf"
                   className="rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100"
                 >
-                  View My Shelf
+                  {tr("View My Shelf", "查看我的书架")}
                 </Link>
               </div>
             </div>
           </div>
 
           <div className="mt-10 border-t border-gray-200 pt-8">
-            <h2 className="text-2xl font-bold text-gray-950">Description</h2>
+            <h2 className="text-2xl font-bold text-gray-950">{tr("Description", "简介")}</h2>
 
             {description ? (
               <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">
                 {description}
               </p>
             ) : (
-              <p className="mt-4 text-gray-500">No description yet.</p>
+              <p className="mt-4 text-gray-500">{tr("No description yet.", "暂无简介。")}</p>
             )}
           </div>
         </section>
@@ -215,22 +220,22 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-950">Reviews</h2>
+              <h2 className="text-2xl font-bold text-gray-950">{tr("Reviews", "书评")}</h2>
               <p className="mt-2 text-gray-600">
-                Reader reviews from the current backend.
+                {tr("What readers think of this book.", "读者对这本书的评价。")}
               </p>
             </div>
 
             <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">
-              {reviews.length} total
+              {tr(`${reviews.length} total`, `共 ${reviews.length} 条`)}
             </span>
           </div>
 
           {reviews.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center">
-              <h3 className="font-semibold text-gray-900">No reviews yet.</h3>
+              <h3 className="font-semibold text-gray-900">{tr("No reviews yet.", "还没有书评。")}</h3>
               <p className="mt-2 text-sm text-gray-600">
-                Reviews will appear here after users write them.
+                {tr("Reviews will appear here after readers write them.", "读者写下书评后会显示在这里。")}
               </p>
             </div>
           ) : (
@@ -246,12 +251,12 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                         ⭐ {review.rating}
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
-                        User: {review.user_id}
+                        {tr("User:", "用户：")} {review.user_id}
                       </p>
                     </div>
 
                     <p className="text-sm text-gray-500">
-                      {formatDate(review.updated_at)}
+                      {formatDate(locale, tr, review.updated_at)}
                     </p>
                   </div>
 

@@ -3,14 +3,18 @@
 import { useState } from "react";
 import type { UserBook, UserBookPatch } from "@/lib/api";
 import { updateMyBook } from "@/lib/api";
+import type { Translate } from "@/lib/i18n";
+import { useT } from "@/components/LocaleProvider";
 
-export const CONDITION_LABELS: Record<number, string> = {
-  1: "Poor",
-  2: "Fair",
-  3: "Good",
-  4: "Very good",
-  5: "Like new",
-};
+export function conditionLabels(tr: Translate): Record<number, string> {
+  return {
+    1: tr("Poor", "较差"),
+    2: tr("Fair", "一般"),
+    3: tr("Good", "良好"),
+    4: tr("Very good", "很好"),
+    5: tr("Like new", "几乎全新"),
+  };
+}
 
 type BookDetailsEditorProps = {
   item: UserBook;
@@ -30,6 +34,8 @@ function splitTags(value: string) {
 }
 
 export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditorProps) {
+  const tr = useT();
+  const conditions = conditionLabels(tr);
   const [condition, setCondition] = useState(item.condition ? String(item.condition) : "");
   const [visibility, setVisibility] = useState(item.visibility === "public" ? "public" : "private");
   const [exchangeable, setExchangeable] = useState(item.exchangeable);
@@ -44,7 +50,7 @@ export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditor
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (startedAt && finishedAt && startedAt > finishedAt) {
-      setError("The start date can't be after the finish date.");
+      setError(tr("The start date can't be after the finish date.", "开始日期不能晚于读完日期。"));
       return;
     }
 
@@ -64,7 +70,7 @@ export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditor
     try {
       onSaved(await updateMyBook(item.id, patch));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save.");
+      setError(err instanceof Error ? err.message : tr("Could not save.", "保存失败。"));
     } finally {
       setBusy(false);
     }
@@ -76,48 +82,48 @@ export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditor
   return (
     <form onSubmit={handleSubmit} className="mt-5 grid gap-4 border-t border-gray-100 pt-5 sm:grid-cols-2">
       <label className={label}>
-        Condition
+        {tr("Condition", "品相")}
         <select value={condition} onChange={(e) => setCondition(e.target.value)} className={field}>
-          <option value="">Not set</option>
+          <option value="">{tr("Not set", "未设置")}</option>
           {[5, 4, 3, 2, 1].map((value) => (
             <option key={value} value={value}>
-              {CONDITION_LABELS[value]}
+              {conditions[value]}
             </option>
           ))}
         </select>
       </label>
 
       <label className={label}>
-        Who can see it
+        {tr("Who can see it", "谁能看到")}
         <select value={visibility} onChange={(e) => setVisibility(e.target.value)} className={field}>
-          <option value="private">Only me</option>
-          <option value="public">Everyone</option>
+          <option value="private">{tr("Only me", "仅自己")}</option>
+          <option value="public">{tr("Everyone", "所有人")}</option>
         </select>
       </label>
 
       <label className={`${label} sm:col-span-2`}>
-        Where it is
+        {tr("Where it is", "存放位置")}
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="e.g. Living room shelf, lent to Wei"
+          placeholder={tr("e.g. Living room shelf, lent to Wei", "例如：客厅书架、借给了小魏")}
           maxLength={300}
           className={field}
         />
       </label>
 
       <label className={`${label} sm:col-span-2`}>
-        Tags
+        {tr("Tags", "标签")}
         <input
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          placeholder="Separate with commas"
+          placeholder={tr("Separate with commas", "用逗号分隔")}
           className={field}
         />
       </label>
 
       <label className={`${label} sm:col-span-2`}>
-        Private notes
+        {tr("Private notes", "私人笔记")}
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -128,18 +134,18 @@ export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditor
       </label>
 
       <label className={label}>
-        Started
+        {tr("Started", "开始阅读")}
         <input type="date" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} className={field} />
       </label>
 
       <label className={label}>
-        Finished
+        {tr("Finished", "读完")}
         <input type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)} className={field} />
       </label>
 
       <label className="flex items-center gap-2 text-sm font-semibold text-gray-900 sm:col-span-2">
         <input type="checkbox" checked={exchangeable} onChange={(e) => setExchangeable(e.target.checked)} />
-        Open to swapping or lending this copy
+        {tr("Open to swapping or lending this copy", "这本书可以交换或出借")}
       </label>
 
       {error && (
@@ -154,14 +160,14 @@ export function BookDetailsEditor({ item, onSaved, onCancel }: BookDetailsEditor
           disabled={busy}
           className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr("Saving…", "保存中…") : tr("Save", "保存")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
         >
-          Cancel
+          {tr("Cancel", "取消")}
         </button>
       </div>
     </form>

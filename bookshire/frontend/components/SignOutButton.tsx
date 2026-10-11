@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/components/LocaleProvider";
 
 export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
+  const tr = useT();
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSignOut() {
@@ -28,7 +30,7 @@ export function SignOutButton({ className }: { className?: string }) {
         "rounded-full border border-gray-300 px-4 py-2 font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-50"
       }
     >
-      Sign out
+      {tr("Sign out", "退出登录")}
     </button>
   );
 }

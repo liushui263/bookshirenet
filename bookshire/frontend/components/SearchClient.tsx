@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { CatalogShelf } from "@/components/spines/CatalogShelf";
+import { useT } from "@/components/LocaleProvider";
 import { searchBooks } from "@/lib/api";
 import type { Book } from "@/lib/api";
 
 export function SearchClient() {
+  const tr = useT();
   const [query, setQuery] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -34,7 +36,7 @@ export function SearchClient() {
     } catch (error) {
       setBooks([]);
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to search books."
+        error instanceof Error ? error.message : tr("Failed to search books.", "搜索失败。")
       );
     } finally {
       setIsLoading(false);
@@ -51,7 +53,7 @@ export function SearchClient() {
           htmlFor="book-search"
           className="block text-sm font-semibold text-gray-900"
         >
-          Search by title, tag, category, or keyword
+          {tr("Search by title, tag, category, or keyword", "按书名、标签、分类或关键词搜索")}
         </label>
 
         <div className="mt-4 flex flex-col gap-3 md:flex-row">
@@ -59,7 +61,7 @@ export function SearchClient() {
             id="book-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Try Sapiens, history, science..."
+            placeholder={tr("Try Sapiens, history, science...", "试试：人类简史、历史、科学…")}
             className="min-h-12 flex-1 rounded-full border border-gray-300 bg-white px-5 text-gray-950 outline-none transition focus:border-gray-950"
           />
 
@@ -68,14 +70,14 @@ export function SearchClient() {
             disabled={isLoading}
             className="rounded-full bg-gray-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-50"
           >
-            {isLoading ? "Searching..." : "Search"}
+            {isLoading ? tr("Searching...", "搜索中…") : tr("Search", "搜索")}
           </button>
         </div>
       </form>
 
       {errorMessage && (
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
-          <p className="font-semibold">Search failed</p>
+          <p className="font-semibold">{tr("Search failed", "搜索失败")}</p>
           <p className="mt-2 font-mono">{errorMessage}</p>
         </div>
       )}
@@ -84,22 +86,25 @@ export function SearchClient() {
         <section className="mt-8">
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-950">
-              Search Results
+              {tr("Search Results", "搜索结果")}
             </h2>
             <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">
-              {books.length} found
+              {tr(`${books.length} found`, `找到 ${books.length} 本`)}
             </span>
           </div>
 
           {books.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-              <h3 className="font-semibold text-gray-900">No books found.</h3>
+              <h3 className="font-semibold text-gray-900">{tr("No books found.", "没有找到图书。")}</h3>
               <p className="mt-2 text-sm text-gray-600">
-                Try a broader keyword such as history, science, or Sapiens.
+                {tr(
+                  "Try a broader keyword such as history, science, or Sapiens.",
+                  "换个更宽泛的关键词试试，比如历史、科学或人类简史。",
+                )}
               </p>
             </div>
           ) : (
-            <CatalogShelf books={books} label="Search results" />
+            <CatalogShelf books={books} label={tr("Search results", "搜索结果")} />
           )}
         </section>
       )}

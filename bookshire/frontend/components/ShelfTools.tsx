@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { ShelfImportResult, UserBook } from "@/lib/api";
 import { addMyBookByIsbn, importShelfFile, shelfExportUrl } from "@/lib/api";
+import { useT } from "@/components/LocaleProvider";
 
 type ShelfToolsProps = {
   onAdded: (item: UserBook) => void;
@@ -12,6 +13,7 @@ type ShelfToolsProps = {
 const MAX_FILE_BYTES = 2_000_000;
 
 export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
+  const tr = useT();
   const [isbn, setIsbn] = useState("");
   const [isbnBusy, setIsbnBusy] = useState(false);
   const [isbnMessage, setIsbnMessage] = useState<string | null>(null);
@@ -29,9 +31,9 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
       const item = await addMyBookByIsbn(isbn.trim());
       onAdded(item);
       setIsbn("");
-      setIsbnMessage(`Added "${item.book_title}".`);
+      setIsbnMessage(tr(`Added "${item.book_title}".`, `已添加《${item.book_title}》。`));
     } catch (error) {
-      setIsbnMessage(error instanceof Error ? error.message : "Could not add that ISBN.");
+      setIsbnMessage(error instanceof Error ? error.message : tr("Could not add that ISBN.", "无法添加这个 ISBN。"));
     } finally {
       setIsbnBusy(false);
     }
@@ -45,7 +47,7 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
     setImportMessage(null);
     setImportResult(null);
     if (file.size > MAX_FILE_BYTES) {
-      setImportMessage("That file is too big. Files can be up to 2 MB.");
+      setImportMessage(tr("That file is too big. Files can be up to 2 MB.", "文件太大，最大 2 MB。"));
       return;
     }
 
@@ -56,7 +58,7 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
       setImportResult(result);
       await onImported();
     } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : "Could not import that file.");
+      setImportMessage(error instanceof Error ? error.message : tr("Could not import that file.", "无法导入这个文件。"));
     } finally {
       setImportBusy(false);
     }
@@ -68,9 +70,12 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
         onSubmit={handleAddByIsbn}
         className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
       >
-        <h2 className="text-lg font-bold text-gray-950">Add a book by ISBN</h2>
+        <h2 className="text-lg font-bold text-gray-950">{tr("Add a book by ISBN", "按 ISBN 添加图书")}</h2>
         <p className="mt-1 text-sm text-gray-600">
-          The 10 or 13 digit number on the back cover or copyright page.
+          {tr(
+            "The 10 or 13 digit number on the back cover or copyright page.",
+            "封底或版权页上的 10 位或 13 位数字。",
+          )}
         </p>
         <div className="mt-4 flex gap-2">
           <label htmlFor="isbn-input" className="sr-only">
@@ -90,7 +95,7 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
             disabled={isbnBusy || !isbn.trim()}
             className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
           >
-            {isbnBusy ? "Looking up…" : "Add"}
+            {isbnBusy ? tr("Looking up…", "查找中…") : tr("Add", "添加")}
           </button>
         </div>
         {isbnMessage && (
@@ -101,23 +106,27 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
       </form>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-gray-950">Export or import</h2>
+        <h2 className="text-lg font-bold text-gray-950">{tr("Export or import", "导出或导入")}</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Download your shelf as a spreadsheet (CSV) or JSON, or add books from a file
-          with a <code>title</code> or <code>isbn</code> column.
+          {tr(
+            "Download your shelf as a spreadsheet (CSV) or JSON, or add books from a file with a",
+            "将书架下载为表格（CSV）或 JSON，或从文件导入图书，文件需包含",
+          )}{" "}
+          <code>title</code> {tr("or", "或")} <code>isbn</code>{" "}
+          {tr("column.", "列。")}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <a
             href={shelfExportUrl("csv")}
             className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
           >
-            Export CSV
+            {tr("Export CSV", "导出 CSV")}
           </a>
           <a
             href={shelfExportUrl("json")}
             className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
           >
-            Export JSON
+            {tr("Export JSON", "导出 JSON")}
           </a>
           <button
             type="button"
@@ -125,7 +134,7 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
             onClick={() => fileInput.current?.click()}
             className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
           >
-            {importBusy ? "Importing…" : "Import file"}
+            {importBusy ? tr("Importing…", "导入中…") : tr("Import file", "导入文件")}
           </button>
           <input
             ref={fileInput}
@@ -133,7 +142,7 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
             accept=".csv,.json,text/csv,application/json"
             onChange={handleFile}
             className="hidden"
-            aria-label="Choose a CSV or JSON file to import"
+            aria-label={tr("Choose a CSV or JSON file to import", "选择要导入的 CSV 或 JSON 文件")}
           />
         </div>
         {importMessage && (
@@ -144,15 +153,22 @@ export function ShelfTools({ onAdded, onImported }: ShelfToolsProps) {
         {importResult && (
           <div className="mt-3 text-sm text-gray-700" role="status">
             <p>
-              Added {importResult.added}, updated {importResult.updated}
-              {importResult.failed > 0 ? `, ${importResult.failed} could not be imported` : ""}.
+              {tr(
+                `Added ${importResult.added}, updated ${importResult.updated}${
+                  importResult.failed > 0 ? `, ${importResult.failed} could not be imported` : ""
+                }.`,
+                `新增 ${importResult.added} 本，更新 ${importResult.updated} 本${
+                  importResult.failed > 0 ? `，${importResult.failed} 本无法导入` : ""
+                }。`,
+              )}
             </p>
             {importResult.errors.length > 0 && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-600">
                 {importResult.errors.map((error) => (
                   <li key={error.row}>
-                    Row {error.row}
-                    {error.title ? ` (${error.title})` : ""}: {error.error}
+                    {tr(`Row ${error.row}`, `第 ${error.row} 行`)}
+                    {error.title ? ` (${error.title})` : ""}
+                    {tr(":", "：")} {error.error}
                   </li>
                 ))}
               </ul>
